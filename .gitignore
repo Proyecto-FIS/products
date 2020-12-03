@@ -1,3 +1,6 @@
+#Nedb local database
+products.json
+
 # Logs
 logs
 *.log

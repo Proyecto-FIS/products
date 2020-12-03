@@ -1,1 +1,1 @@
-# products
+# Products Management Microservice

@@ -17,7 +17,7 @@ var db = new DataStore({
 });
 
 app.get("/", (req, res ) => {
-    res.send("<html><body><h1>Coffaine Products</h1></body></html>")
+    res.send("<html><body><h1>Coffaine Products - With Github Actions</h1></body></html>")
 });
 
 app.get(BASE_API_PATH + "/products", async (req, res) => {

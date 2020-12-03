@@ -1,3 +1,6 @@
+#.devcontainer
+.devcontainer
+
 #Nedb local database
 products.json
 

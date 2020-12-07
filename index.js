@@ -1,43 +1,65 @@
-var express = require('express');
-var bodyParser = require('body-parser')
-var DataStore = require('nedb')
+const express = require("express");
+const bodyParser = require("body-parser");
+const swaggerJsDoc = require("swagger-jsdoc");
+const swaggerUi = require("swagger-ui-express");
 
-var port = (process.env.PORT || 3000);
-var BASE_API_PATH="/api/v1";
-var DB_FILE_NAME = __dirname + "/products.json"
+const port = process.env.PORT || 3000;
+const BASE_API_PATH = "/api/v1";
+
+const app = express();
+app.use(bodyParser.json());
+
+// Extended: https://swagger.io/specification/#infoObject
+const swaggerOptions = {
+  swaggerDefinition: {
+    info: {
+      version: "1.0.0",
+      title: "Coffaine products API",
+      description: "All products resources of coffaine documented in swagger",
+      contact: {
+        name: "Coffaine",
+      },
+      servers: ["http://localhost:3000" + BASE_API_PATH],
+    },
+  },
+  //Ruta donde haya endpoints ['.routes/*.js']
+  apis: ["index.js"],
+};
+
+const swaggerDocs = swaggerJsDoc(swaggerOptions);
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+
+var contacts = [
+  { name: "Peter", age: 12 },
+  { name: "John", age: 33 },
+];
 
 console.log("Starting API server...");
 
-var app = express();
-app.use(bodyParser.json());
-
-var db = new DataStore({
-    filename: DB_FILE_NAME,
-    autoload: true
+app.get("/", (req, res) => {
+  res.send("<html><body><h1>HOLA MUNDO</h1></body></html>");
 });
 
-app.get("/", (req, res ) => {
-    res.send("<html><body><h1>Coffaine Products - With Github Actions</h1></body></html>")
+//Routes
+/**
+ * @swagger
+ * /api/v1/contacts:
+ *  get:
+ *    description: Use to request all constacs
+ *    responses:
+ *      '200':
+ *        description: A successful response
+ */
+app.get(BASE_API_PATH + "/contacts", async (req, res) => {
+  console.log(Date() + "-GET /contacts");
+  res.send(contacts);
 });
 
-app.get(BASE_API_PATH + "/products", async (req, res) => {
-    console.log(Date() + "-GET /products")
-    db.find({}).exec(function (err, products) {
-        res.send(products)
-    });
-});
-
-app.post(BASE_API_PATH + "/products", (req, res) => {
-    console.log(Date() + "-POST /products")
-    var product = req.body
-    db.insert(product, (err) => {
-        if(err){
-            console.error(Date() + " - " + err)
-            res.send(500)
-        }else{
-            res.sendStatus(201)
-        }
-    });
+app.post(BASE_API_PATH + "/contacts", (req, res) => {
+  console.log(Date() + "-POST /contacts");
+  var contact = req.body;
+  contacts.push(contact);
+  res.sendStatus(201);
 });
 
 app.listen(port);

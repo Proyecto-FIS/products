@@ -63,6 +63,21 @@ app.get(BASE_API_PATH + "/products", async (req, res) => {
   });
 });
 
+
+app.get(BASE_API_PATH + "/products/:productId", async (req, res) => {
+  console.log(Date() + "-GET /products/id");
+  const productId = req.params.productId
+  db.findOne({ _id: productId }).exec(function (err, product) {
+    if(product){
+      res.send(product);
+    }else{
+      // If no document is found, product is null
+      res.sendStatus(404);
+    }
+  });
+});
+
+
 app.post(BASE_API_PATH + "/products", (req, res) => {
   console.log(Date() + "-POST /products");
   var product = req.body;

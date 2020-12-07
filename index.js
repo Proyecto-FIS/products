@@ -67,7 +67,6 @@ app.get(BASE_API_PATH + "/products", async (req, res) => {
   });
 });
 
-
 app.get(BASE_API_PATH + "/products/:productId", async (req, res) => {
   console.log(Date() + "-GET /products/id");
   const productId = req.params.productId
@@ -80,7 +79,6 @@ app.get(BASE_API_PATH + "/products/:productId", async (req, res) => {
     }
   });
 });
-
 
 app.post(BASE_API_PATH + "/products", (req, res) => {
   console.log(Date() + "-POST /products");
@@ -103,6 +101,19 @@ app.post(BASE_API_PATH + "/products", (req, res) => {
       res.sendStatus(201);
     }
   });
+});
+
+app.delete(BASE_API_PATH + "/products/:productId", async (req, res) => {
+  console.log(Date() + "-DELETE /products/id");
+  const productId = req.params.productId
+  db.remove({ _id: productId },{}, function (err, numRemoved) {
+    if(numRemoved === 0){
+      console.error(Date() + " - " + err);
+      res.sendStatus(404);
+    }else{
+      res.sendStatus(202);
+    }
+  })
 });
 
 app.listen(port);

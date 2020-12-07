@@ -116,6 +116,28 @@ app.delete(BASE_API_PATH + "/products/:productId", async (req, res) => {
   })
 });
 
+app.put(BASE_API_PATH + "/products/:productId", async (req, res) => {
+  console.log(Date() + "-PUT /products/id");
+  const productId = req.params.productId
+  const newProduct = req.body
+
+  db.findOne({ _id: productId }).exec(function (err, product) {
+    if(product){
+      db.update(product,{$set: newProduct}, function (err, numReplaced) {
+        if(numReplaced === 0){
+          console.error(Date() + " - " + err);
+          res.sendStatus(404);
+        }else{
+          res.sendStatus(202);
+        }
+      });
+    }else{
+      // If no document is found, product is null
+      res.sendStatus(404);
+    }
+  });
+});
+
 app.listen(port);
 
 console.log("Server ready!");

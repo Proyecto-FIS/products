@@ -1,14 +1,15 @@
 FROM node:15-alpine
 
-WORKDIR /app
-
-COPY package.json .
-COPY package-lock.json .
-
+WORKDIR /coffaine-products/backend
+COPY backend/package.json .
+COPY backend/package-lock.json .
 RUN npm install
 
-COPY index.js .
+WORKDIR /coffaine-products/backend
+COPY backend/env env
+COPY backend/source source
+COPY backend/utils utils
 
 EXPOSE 3000
 
-CMD npm start
+CMD npm run start:prod

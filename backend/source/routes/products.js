@@ -137,7 +137,7 @@ const deleteMethod = (req, res) => {
       console.error(Date() + " - " + err);
       res.sendStatus(404);
     } else {
-      res.status(204);
+      res.sendStatus(204);
     }
   });
 };

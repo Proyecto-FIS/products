@@ -1,7 +1,6 @@
 const express = require("express");
 const expressSwagger = require("express-swagger-generator");
 const swagger = require("express-swagger-generator/lib/swagger");
-const bodyParser = require("body-parser");
 
 const swaggerOptions = {
   swaggerDefinition: {
@@ -35,7 +34,6 @@ class App {
 
     this.app.use(express.json());
     this.app.use(this.router);
-    this.app.use(bodyParser.json);
 
     // Route registration
     const apiPrefix = swaggerOptions.swaggerDefinition.basePath;

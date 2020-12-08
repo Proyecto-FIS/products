@@ -40,6 +40,10 @@ const db = new DataStore({
   autoload: true,
 });
 
+// --------- METHODS ---------
+const { validateProductData } = require('./utils/validators');
+
+
 app.get("/", (req, res) => {
   res.send(
     "<html><body><h1>Coffaine Products - With Github Actions</h1></body></html>"
@@ -63,15 +67,73 @@ app.get(BASE_API_PATH + "/products", async (req, res) => {
   });
 });
 
+app.get(BASE_API_PATH + "/products/:productId", async (req, res) => {
+  console.log(Date() + "-GET /products/id");
+  const productId = req.params.productId
+  db.findOne({ _id: productId }).exec(function (err, product) {
+    if(product){
+      res.send(product);
+    }else{
+      // If no document is found, product is null
+      res.sendStatus(404);
+    }
+  });
+});
+
 app.post(BASE_API_PATH + "/products", (req, res) => {
   console.log(Date() + "-POST /products");
-  var product = req.body;
-  db.insert(product, (err) => {
+  const newProduct = {
+    name: req.body.name,
+    description: req.body.description,
+    stock: req.body.stock,
+    imageUrl: "https://www.google.com",
+    providerId: "UUID",
+    grind: req.body.grind,
+    format: req.body.format
+  };
+  const { valid, errors } = validateProductData(newProduct);
+  if(!valid) return res.status(400).json(errors);
+  db.insert(newProduct, (err) => {
     if (err) {
       console.error(Date() + " - " + err);
       res.send(500);
     } else {
       res.sendStatus(201);
+    }
+  });
+});
+
+app.delete(BASE_API_PATH + "/products/:productId", async (req, res) => {
+  console.log(Date() + "-DELETE /products/id");
+  const productId = req.params.productId
+  db.remove({ _id: productId },{}, function (err, numRemoved) {
+    if(numRemoved === 0){
+      console.error(Date() + " - " + err);
+      res.sendStatus(404);
+    }else{
+      res.sendStatus(202);
+    }
+  })
+});
+
+app.put(BASE_API_PATH + "/products/:productId", async (req, res) => {
+  console.log(Date() + "-PUT /products/id");
+  const productId = req.params.productId
+  const newProduct = req.body
+
+  db.findOne({ _id: productId }).exec(function (err, product) {
+    if(product){
+      db.update(product,{$set: newProduct}, function (err, numReplaced) {
+        if(numReplaced === 0){
+          console.error(Date() + " - " + err);
+          res.sendStatus(404);
+        }else{
+          res.sendStatus(202);
+        }
+      });
+    }else{
+      // If no document is found, product is null
+      res.sendStatus(404);
     }
   });
 });

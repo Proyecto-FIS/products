@@ -9,10 +9,10 @@ const swaggerOptions = {
       title: "Swagger",
       version: "1.0.0",
     },
-    host: process.env.HOSTNAME + ":" + process.env.PORT || "localhost:3000",
+    host: process.env.HOSTNAME,
     basePath: "/api/v1",
     produces: ["application/json"],
-    schemes: ["http", "https"],
+    schemes: [process.env.SCHEMA],
     securityDefinitions: {
       JWT: {
         type: "apiKey",

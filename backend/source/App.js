@@ -1,6 +1,7 @@
 const express = require("express");
 const expressSwagger = require("express-swagger-generator");
 const swagger = require("express-swagger-generator/lib/swagger");
+const db = require("./database");
 
 const swaggerOptions = {
   swaggerDefinition: {
@@ -49,17 +50,22 @@ class App {
   }
 
   run(done) {
-    const port = process.env.PORT || 3000;
-    this.server = this.app.listen(port, () => {
-      console.log(`[SERVER] Running at port ${port}`);
-      done();
+    process.on("SIGINT", () => {
+        this.stop(() => console.log("[SERVER] Shut down requested by user"));
+    });
+
+    db.setupConnection(() => {
+        this.server = this.app.listen(this.port, () => {
+            console.log(`[SERVER] Running at port ${this.port}`);
+            done();
+        });
     });
   }
 
   stop(done) {
     if (this.server == null) return;
     this.server.close(() => {
-      done();
+      db.closeConnection(done);
     });
   }
 }

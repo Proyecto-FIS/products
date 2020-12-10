@@ -1,7 +1,6 @@
 const express = require("express");
 const { validateProductData } = require("../../utils/validators");
-
-const database = require("../database");
+const Product = require("../models/product")
 
 /**
  * @typedef format
@@ -40,7 +39,7 @@ const getMethod = (req, res) => {
   const productId = req.query.productId;
 
   if (productId) {
-    database.db.findOne({ _id: productId }).exec(function (err, product) {
+    Product.findOne({ _id: productId }).exec(function (err, product) {
       if (product) {
         res.send(product);
       } else {
@@ -49,7 +48,7 @@ const getMethod = (req, res) => {
       }
     });
   } else {
-    database.db.find({}).exec(function (err, products) {
+    Product.find({}).exec(function (err, products) {
       res.send(products);
     });
   }
@@ -76,10 +75,10 @@ const postMethod = (req, res) => {
   };
   const { valid, errors } = validateProductData(newProduct);
   if (!valid) return res.status(400).json(errors);
-  database.db.insert(newProduct, (err) => {
+  Product.create(newProduct, (err) => {
     if (err) {
       console.error(Date() + " - " + err);
-      res.send(500);
+      res.sendStatus(500);
     } else {
       res.status(201).json(newProduct);
     }
@@ -100,9 +99,9 @@ const putMethod = (req, res) => {
   const productId = req.query.productId;
   const newProduct = req.body;
 
-  database.db.findOne({ _id: productId }).exec(function (err, product) {
+  Product.findOne({ _id: productId }).exec(function (err, product) {
     if (product) {
-      database.db.update(
+      Product.update(
         product,
         { $set: newProduct },
         function (err, numReplaced) {
@@ -132,7 +131,7 @@ const putMethod = (req, res) => {
 const deleteMethod = (req, res) => {
   console.log(Date() + "-DELETE /products/id");
   const productId = req.query.productId;
-  database.db.remove({ _id: productId }, {}, function (err, numRemoved) {
+  Product.remove({ _id: productId }, {}, function (err, numRemoved) {
     if (numRemoved === 0) {
       console.error(Date() + " - " + err);
       res.sendStatus(404);

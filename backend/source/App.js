@@ -1,6 +1,7 @@
 const express = require("express");
 const expressSwagger = require("express-swagger-generator");
 const swagger = require("express-swagger-generator/lib/swagger");
+const db = require("./database");
 
 const swaggerOptions = {
   swaggerDefinition: {
@@ -9,7 +10,7 @@ const swaggerOptions = {
       title: "Swagger",
       version: "1.0.0",
     },
-    host: process.env.HOSTNAME,
+    host: (process.env.HOSTNAME).includes('localhost') ? "localhost:3000" : process.env.HOSTNAME + ":" + process.env.PORT,
     basePath: "/api/v1",
     produces: ["application/json"],
     schemes: [process.env.SCHEMA],
@@ -49,17 +50,22 @@ class App {
   }
 
   run(done) {
-    const port = process.env.PORT || 3000;
-    this.server = this.app.listen(port, () => {
-      console.log(`[SERVER] Running at port ${port}`);
-      done();
+    process.on("SIGINT", () => {
+        this.stop(() => console.log("[SERVER] Shut down requested by user"));
+    });
+
+    db.setupConnection(() => {
+        this.server = this.app.listen(process.env.PORT, () => {
+            console.log(`[SERVER] Running at port ${process.env.PORT}`);
+            done();
+        });
     });
   }
 
   stop(done) {
     if (this.server == null) return;
     this.server.close(() => {
-      done();
+      db.closeConnection(done);
     });
   }
 }

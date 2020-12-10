@@ -26,7 +26,7 @@ module.exports.setupConnection = (done) => {
     });
 
     // Create DB connection
-    const uri = "mongodb+srv://" + process.env.DBUSER + ":<" + process.env.DBPASSWORD + ">@cluster0.dhotq.mongodb.net/<" + process.env.DBPASSWORD + ">?retryWrites=true&w=majority";
+    const uri = "mongodb+srv://" + process.env.DBUSER + ":" + process.env.DBPASSWORD + "@cluster0.dhotq.mongodb.net/" + process.env.DBNAME + "?retryWrites=true&w=majority";
     mongoose.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true });
 }
 

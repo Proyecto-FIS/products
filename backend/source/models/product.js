@@ -1,11 +1,6 @@
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
-const FormatSchema = new Schema({
-    type: String,
-    price: Number
-});
-
 const ProductSchema = new Schema({
     name: String,
     description: String,
@@ -13,7 +8,10 @@ const ProductSchema = new Schema({
     imageUrl: String,
     providerId: String,
     grind: Array,
-    format: [FormatSchema]
+    format: [{
+        name: String,
+        price: Number
+    }]
 });
 
 

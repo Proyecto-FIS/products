@@ -10,10 +10,10 @@ const swaggerOptions = {
       title: "Swagger",
       version: "1.0.0",
     },
-    host: process.env.HOSTNAME + ":" + process.env.PORT || "localhost:3000",
+    host: (process.env.HOSTNAME).includes('localhost') ? "localhost:3000" : process.env.HOSTNAME + ":" + process.env.PORT,
     basePath: "/api/v1",
     produces: ["application/json"],
-    schemes: ["http", "https"],
+    schemes: [process.env.SCHEMA],
     securityDefinitions: {
       JWT: {
         type: "apiKey",
@@ -55,8 +55,8 @@ class App {
     });
 
     db.setupConnection(() => {
-        this.server = this.app.listen(this.port, () => {
-            console.log(`[SERVER] Running at port ${this.port}`);
+        this.server = this.app.listen(process.env.PORT, () => {
+            console.log(`[SERVER] Running at port ${process.env.PORT}`);
             done();
         });
     });

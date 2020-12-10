@@ -99,9 +99,9 @@ const putMethod = (req, res) => {
   const productId = req.query.productId;
   const newProduct = req.body;
 
-  database.db.findOne({ _id: productId }).exec(function (err, product) {
+  Product.findOne({ _id: productId }).exec(function (err, product) {
     if (product) {
-      database.db.update(
+      Product.update(
         product,
         { $set: newProduct },
         function (err, numReplaced) {
@@ -131,7 +131,7 @@ const putMethod = (req, res) => {
 const deleteMethod = (req, res) => {
   console.log(Date() + "-DELETE /products/id");
   const productId = req.query.productId;
-  database.db.remove({ _id: productId }, {}, function (err, numRemoved) {
+  Product.remove({ _id: productId }, {}, function (err, numRemoved) {
     if (numRemoved === 0) {
       console.error(Date() + " - " + err);
       res.sendStatus(404);

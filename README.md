@@ -13,7 +13,7 @@ Product:
     _providerId: UUID
     grind: String
     format: Object
-        type: String
+        name: String
         price: Double
 ```
 

@@ -10,7 +10,7 @@ const swaggerOptions = {
       title: "Swagger",
       version: "1.0.0",
     },
-    host: (process.env.HOSTNAME).includes('localhost') ? "localhost:3000" : process.env.HOSTNAME + ":" + process.env.PORT,
+    host: process.env.HOSTNAME || ('localhost:' + process.env.PORT),
     basePath: "/api/v1",
     produces: ["application/json"],
     schemes: [process.env.SCHEMA],

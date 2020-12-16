@@ -1,10 +1,10 @@
 const express = require("express");
 const { validateProductData } = require("../../utils/validators");
-const Product = require("../models/product")
+const Product = require("../models/product");
 
 /**
  * @typedef format
- * @property {string}  type
+ * @property {string}  name
  * @property {integer}     price
  *
  */
@@ -12,13 +12,13 @@ const Product = require("../models/product")
 /**
  * @typedef ProductsProfile
  * @property {integer} _id           - UUID
- * @property {integer} _providerId   - Identifier
+ * @property {string} providerId   - Identifier
  * @property {string}  name          - Address
  * @property {string}  description   - City
  * @property {integer}     stock         - Stock
- * @property {string}  imgUrl        - imgUrl
- * @property {string}  grind         - imgUrl
- * @property {Array.<format>} formats
+ * @property {string}  imageUrl        - imgUrl
+ * @property {string}  grind         - grind
+ * @property {Array.<format>} format
  */
 
 /**
@@ -27,23 +27,32 @@ const Product = require("../models/product")
  */
 
 /**
- * Get all products if empty, or selected product by _id
+ * Get all products if empty, or selected product by _id wether providerId
  * @route GET /products
  * @group Products - Products
- * @param {string} productId.query -  If empty returns all prodcuts
+ * @param {string} productId.query -  If empty returns all prodcuts, or use providerId parameter
+ * @param {string} providerId.query -  If empty returns all prodcuts,  or use productId parameter
  * @returns {ProductsProfile} 200 - Returns wheter selected product or all products
  * @returns {ProductsProfileError} default - unexpected error
  */
 const getMethod = (req, res) => {
   console.log(Date() + "-GET /products");
   const productId = req.query.productId;
+  const providerId = req.query.providerId;
 
   if (productId) {
     Product.findOne({ _id: productId }).exec(function (err, product) {
       if (product) {
         res.send(product);
       } else {
-        // If no document is found, product is null
+        res.sendStatus(404);
+      }
+    });
+  } else if (providerId) {
+    Product.find({ providerId: providerId }).exec(function (err, product) {
+      if (product) {
+        res.send(product);
+      } else {
         res.sendStatus(404);
       }
     });
@@ -68,8 +77,8 @@ const postMethod = (req, res) => {
     name: req.body.name,
     description: req.body.description,
     stock: req.body.stock,
-    imageUrl: "https://www.google.com",
-    providerId: "UUID",
+    imageUrl: req.body.imageUrl,
+    providerId: req.body.providerId,
     grind: req.body.grind,
     format: req.body.format,
   };

@@ -4,6 +4,7 @@ const Product = require("../models/product");
 const circuitBreaker = require("../circuitBreaker").configure;
 const authorizeJWT = require("../middlewares/AuthorizeJWT");
 const validators = require("../middlewares/validators");
+const mongoose = require("mongoose");
 
 // var command = circuitBreaker({
 //   url: "https://jsonplaceholder.typicode.com/todos/1",
@@ -24,6 +25,7 @@ const validators = require("../middlewares/validators");
  * @property {string} _id - Unique identifier (ignored in POST requests due to id collision)
  * @property {string}  name.required          - Address
  * @property {string}  description.required   - City
+ * @property {string}  providerId             - ProviderId
  * @property {integer}     stock.required         - Stock
  * @property {string}  imageUrl.required        - imgUrl
  * @property {string}  grind.required         - grind
@@ -101,6 +103,9 @@ const getMethod = (req, res) => {
 const postMethod = (req, res) => {
   console.log(Date() + "-POST /products");
   delete req.body.product._id;
+  req.body.product.providerId = mongoose.Types.ObjectId(
+    req.body.product.providerId
+  );
 
   Product.create(req.body.product, (err) => {
     if (err) {

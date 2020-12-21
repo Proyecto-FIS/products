@@ -24,6 +24,7 @@ const validators = require("../middlewares/validators");
  * @property {string} _id - Unique identifier (ignored in POST requests due to id collision)
  * @property {string}  name.required          - Address
  * @property {string}  description.required   - City
+ * @property {string}  providerId             - ProviderId
  * @property {integer}     stock.required         - Stock
  * @property {string}  imageUrl.required        - imgUrl
  * @property {string}  grind.required         - grind

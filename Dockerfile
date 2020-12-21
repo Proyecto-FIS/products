@@ -8,7 +8,6 @@ RUN npm install
 WORKDIR /coffaine-products/backend
 COPY backend/env env
 COPY backend/source source
-COPY backend/utils utils
 
 EXPOSE 3000
 

@@ -1,6 +1,16 @@
 const express = require("express");
-const { validateProductData } = require("../../utils/validators");
+const { validateProductData } = require("../middlewares/validators");
 const Product = require("../models/product");
+const circuitBreaker = require("../circuitBreaker").configure;
+const authorizeJWT = require("../middlewares/AuthorizeJWT");
+const validators = require("../middlewares/validators");
+
+// var command = circuitBreaker({
+//   url: "https://jsonplaceholder.typicode.com/todos/1",
+//   name: "sample request",
+//   timeout: 1000,
+//   fallback: { err: "error example" },
+// });
 
 /**
  * @typedef format
@@ -11,14 +21,24 @@ const Product = require("../models/product");
 
 /**
  * @typedef ProductsProfile
- * @property {integer} _id           - UUID
- * @property {string} providerId   - Identifier
- * @property {string}  name          - Address
- * @property {string}  description   - City
- * @property {integer}     stock         - Stock
- * @property {string}  imageUrl        - imgUrl
- * @property {string}  grind         - grind
- * @property {Array.<format>} format
+ * @property {string} _id - Unique identifier (ignored in POST requests due to id collision)
+ * @property {string}  name.required          - Address
+ * @property {string}  description.required   - City
+ * @property {integer}     stock.required         - Stock
+ * @property {string}  imageUrl.required        - imgUrl
+ * @property {string}  grind.required         - grind
+ * @property {Array.<format>} format.required
+ */
+
+/**
+ * @typedef ProductsProfileAuth
+ * @property {ProductsProfile.model} product - Products
+ * @property {string} userToken.required - User Token
+ */
+
+/**
+ * @typedef userToken
+ * @property {string} userToken.required - User Token
  */
 
 /**
@@ -37,6 +57,13 @@ const Product = require("../models/product");
  */
 const getMethod = (req, res) => {
   console.log(Date() + "-GET /products");
+  // const cmd = command.build();
+
+  // cmd
+  //   .execute()
+  //   .then((response) => res.status(200).json(response.data))
+  //   .catch((err) => res.sendStatus(500));
+
   const productId = req.query.productId;
   const providerId = req.query.providerId;
 
@@ -67,29 +94,20 @@ const getMethod = (req, res) => {
  * Create a new products for a certain user
  * @route POST /products
  * @group Products - Products
- * @param {ProductsProfile.model} product.body.required - New product
+ * @param {ProductsProfileAuth.model} product.body.required - New product
  * @returns {integer} 200 - Returns the  created product
  * @returns {ProductsProfileError} default - unexpected error
  */
 const postMethod = (req, res) => {
   console.log(Date() + "-POST /products");
-  const newProduct = {
-    name: req.body.name,
-    description: req.body.description,
-    stock: req.body.stock,
-    imageUrl: req.body.imageUrl,
-    providerId: req.body.providerId,
-    grind: req.body.grind,
-    format: req.body.format,
-  };
-  const { valid, errors } = validateProductData(newProduct);
-  if (!valid) return res.status(400).json(errors);
-  Product.create(newProduct, (err) => {
+  delete req.body.product._id;
+
+  Product.create(req.body.product, (err) => {
     if (err) {
       console.error(Date() + " - " + err);
       res.sendStatus(500);
     } else {
-      res.status(201).json(newProduct);
+      res.status(201).json(req.body.product);
     }
   });
 };
@@ -99,26 +117,25 @@ const postMethod = (req, res) => {
  * @route PUT /products
  * @group Products - Products
  * @param {string} productId.query.required -  Product Id
- * @param {ProductsProfile.model} product.body.required - New value for the product
+ * @param {ProductsProfileAuth.model} product.body.required - New value for the product
  * @returns {ProductsProfile} 200 - Returns the current state for this products
  * @returns {ProductsProfileError} default - unexpected error
  */
 const putMethod = (req, res) => {
   console.log(Date() + "-PUT /products/id");
-  const productId = req.query.productId;
-  const newProduct = req.body;
+  delete req.body.product._id;
 
-  Product.findOne({ _id: productId }).exec(function (err, product) {
+  Product.findOne({ _id: req.query.productId }).exec(function (err, product) {
     if (product) {
       Product.update(
         product,
-        { $set: newProduct },
+        { $set: req.body.product },
         function (err, numReplaced) {
           if (numReplaced === 0) {
             console.error(Date() + " - " + err);
             res.sendStatus(404);
           } else {
-            res.status(204).json(newProduct);
+            res.status(204).json(req.body.product);
           }
         }
       );
@@ -134,13 +151,13 @@ const putMethod = (req, res) => {
  * @route DELETE /products
  * @group Products - Products
  * @param {string} productId.query.required -  Product Id
+ * @param {userToken.model} userToken.body.required -  UserToken
  * @returns {ProductsProfile} 200 - Returns the current state for this products profile
  * @returns {ProductsProfileError} default - unexpected error
  */
 const deleteMethod = (req, res) => {
   console.log(Date() + "-DELETE /products/id");
-  const productId = req.query.productId;
-  Product.remove({ _id: productId }, {}, function (err, numRemoved) {
+  Product.remove({ _id: req.query.productId }, {}, function (err, numRemoved) {
     if (numRemoved === 0) {
       console.error(Date() + " - " + err);
       res.sendStatus(404);
@@ -152,7 +169,17 @@ const deleteMethod = (req, res) => {
 
 module.exports.register = (apiPrefix, router) => {
   router.get(apiPrefix + "/products", getMethod);
-  router.post(apiPrefix + "/products", postMethod);
-  router.put(apiPrefix + "/products", putMethod);
-  router.delete(apiPrefix + "/products", deleteMethod);
+  router.post(
+    apiPrefix + "/products",
+    authorizeJWT,
+    validators.validateProductData,
+    postMethod
+  );
+  router.put(
+    apiPrefix + "/products",
+    authorizeJWT,
+    validators.validateProductData,
+    putMethod
+  );
+  router.delete(apiPrefix + "/products", authorizeJWT, deleteMethod);
 };

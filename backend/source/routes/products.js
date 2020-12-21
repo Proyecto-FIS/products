@@ -4,6 +4,7 @@ const Product = require("../models/product");
 const circuitBreaker = require("../circuitBreaker").configure;
 const authorizeJWT = require("../middlewares/AuthorizeJWT");
 const validators = require("../middlewares/validators");
+const mongoose = require("mongoose");
 
 // var command = circuitBreaker({
 //   url: "https://jsonplaceholder.typicode.com/todos/1",
@@ -102,6 +103,9 @@ const getMethod = (req, res) => {
 const postMethod = (req, res) => {
   console.log(Date() + "-POST /products");
   delete req.body.product._id;
+  req.body.product.providerId = mongoose.Types.ObjectId(
+    req.body.product.providerId
+  );
 
   Product.create(req.body.product, (err) => {
     if (err) {

@@ -5,7 +5,6 @@
 
 class Validators {
   static validateProductData(req, res, next) {
-    console.log("haha");
     if (Validators.isEmpty(req.body.product.name)) {
       res.status(400).json({ reason: "Bad request, name empty" });
     } else {

@@ -31,9 +31,14 @@ const validators = require("../middlewares/validators");
  */
 
 /**
- * @typedef ProductsProfilePost
+ * @typedef ProductsProfileAuth
  * @property {ProductsProfile.model} product - Products
- * @property {string} userToken - User Token
+ * @property {string} userToken.required - User Token
+ */
+
+/**
+ * @typedef userToken
+ * @property {string} userToken.required - User Token
  */
 
 /**
@@ -89,7 +94,7 @@ const getMethod = (req, res) => {
  * Create a new products for a certain user
  * @route POST /products
  * @group Products - Products
- * @param {ProductsProfilePost.model} product.body.required - New product
+ * @param {ProductsProfileAuth.model} product.body.required - New product
  * @returns {integer} 200 - Returns the  created product
  * @returns {ProductsProfileError} default - unexpected error
  */
@@ -112,26 +117,25 @@ const postMethod = (req, res) => {
  * @route PUT /products
  * @group Products - Products
  * @param {string} productId.query.required -  Product Id
- * @param {ProductsProfile.model} product.body.required - New value for the product
+ * @param {ProductsProfileAuth.model} product.body.required - New value for the product
  * @returns {ProductsProfile} 200 - Returns the current state for this products
  * @returns {ProductsProfileError} default - unexpected error
  */
 const putMethod = (req, res) => {
   console.log(Date() + "-PUT /products/id");
-  const productId = req.query.productId;
-  const newProduct = req.body;
+  delete req.body.product._id;
 
-  Product.findOne({ _id: productId }).exec(function (err, product) {
+  Product.findOne({ _id: req.query.productId }).exec(function (err, product) {
     if (product) {
       Product.update(
         product,
-        { $set: newProduct },
+        { $set: req.body.product },
         function (err, numReplaced) {
           if (numReplaced === 0) {
             console.error(Date() + " - " + err);
             res.sendStatus(404);
           } else {
-            res.status(204).json(newProduct);
+            res.status(204).json(req.body.product);
           }
         }
       );
@@ -147,13 +151,13 @@ const putMethod = (req, res) => {
  * @route DELETE /products
  * @group Products - Products
  * @param {string} productId.query.required -  Product Id
+ * @param {userToken.model} userToken.body.required -  UserToken
  * @returns {ProductsProfile} 200 - Returns the current state for this products profile
  * @returns {ProductsProfileError} default - unexpected error
  */
 const deleteMethod = (req, res) => {
   console.log(Date() + "-DELETE /products/id");
-  const productId = req.query.productId;
-  Product.remove({ _id: productId }, {}, function (err, numRemoved) {
+  Product.remove({ _id: req.query.productId }, {}, function (err, numRemoved) {
     if (numRemoved === 0) {
       console.error(Date() + " - " + err);
       res.sendStatus(404);
@@ -171,6 +175,11 @@ module.exports.register = (apiPrefix, router) => {
     validators.validateProductData,
     postMethod
   );
-  router.put(apiPrefix + "/products", authorizeJWT, putMethod);
+  router.put(
+    apiPrefix + "/products",
+    authorizeJWT,
+    validators.validateProductData,
+    putMethod
+  );
   router.delete(apiPrefix + "/products", authorizeJWT, deleteMethod);
 };

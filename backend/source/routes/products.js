@@ -92,7 +92,7 @@ const postMethod = (req, res) => {
   console.log(Date() + "-POST /products");
   delete req.body.product._id;
   req.body.product.providerId = mongoose.Types.ObjectId(
-    req.body.product.providerId
+    req.body.userID
   );
 
   Product.create(req.body.product, (err) => {
@@ -117,26 +117,18 @@ const postMethod = (req, res) => {
 const putMethod = (req, res) => {
   console.log(Date() + "-PUT /products/id");
   delete req.body.product._id;
+  delete req.body.product.providerId;
 
-  Product.findOne({ _id: req.query.productId }).exec(function (err, product) {
-    if (product) {
-      Product.update(
-        product,
-        { $set: req.body.product },
-        function (err, numReplaced) {
-          if (numReplaced === 0) {
-            console.error(Date() + " - " + err);
-            res.sendStatus(404);
-          } else {
-            res.status(204).json(req.body.product);
-          }
-        }
-      );
+  Product.findOneAndUpdate({_id: req.query.productId, providerId: req.body.userID}, req.body.product)
+  .then(doc => {
+    if(doc) {
+        return Product.findById(doc._id);
     } else {
-      // If no document is found, product is null
-      res.sendStatus(404);
+        res.sendStatus(401);
     }
-  });
+  })
+  .then(doc => res.status(200).json(doc))
+  .catch(err => res.status(500).json({ reason: "Database error" + err }));
 };
 
 /**
@@ -150,14 +142,9 @@ const putMethod = (req, res) => {
  */
 const deleteMethod = (req, res) => {
   console.log(Date() + "-DELETE /products/id");
-  Product.remove({ _id: req.query.productId }, {}, function (err, numRemoved) {
-    if (numRemoved === 0) {
-      console.error(Date() + " - " + err);
-      res.sendStatus(404);
-    } else {
-      res.sendStatus(204);
-    }
-  });
+  Product.findOneAndDelete({_id: req.query.productId, providerId: req.body.userID})
+  .then(doc => doc ? res.status(200).json(doc) : res.sendStatus(401))
+  .catch(err => res.status(500).json({ reason: "Database error" }));
 };
 
 

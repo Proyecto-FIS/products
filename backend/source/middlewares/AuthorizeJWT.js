@@ -20,6 +20,9 @@ const AuthorizeJWT = (req, res, next) => {
     .get(`${process.env.USERS_MS}/auth/${token}`)
     .then((response) => {
       const userID = mongoose.Types.ObjectId(response.data.account_id);
+      const isCustomer = response.data.isCustomer;
+      if (isCustomer)
+        throw {response:{status: 403}}
       if (req.body.userToken) {
         req.body.userID = userID;
       } else {
@@ -28,7 +31,10 @@ const AuthorizeJWT = (req, res, next) => {
       next();
     })
     .catch((err) => {
-      if (err.response.status === 500) {
+      if(err.response.status === 403){
+        res.status(403).json({reason: "Customers cann't operate this API"})
+      } 
+      else if (err.response.status === 500) {
         res.status(401).json({ reason: "Authentication failed" });
       } else {
         res

@@ -1,17 +1,12 @@
-const express = require("express");
-const { validateProductData } = require("../middlewares/validators");
 const Product = require("../models/product");
-const circuitBreaker = require("../circuitBreaker").configure;
 const authorizeJWT = require("../middlewares/AuthorizeJWT");
 const validators = require("../middlewares/validators");
 const mongoose = require("mongoose");
-
-// var command = circuitBreaker({
-//   url: "https://jsonplaceholder.typicode.com/todos/1",
-//   name: "sample request",
-//   timeout: 1000,
-//   fallback: { err: "error example" },
-// });
+const AWS = require('aws-sdk');
+const { v4: uuidv4 } = require('uuid');
+const Busboy = require('busboy');
+AWS.config.update({ accessKeyId: process.env.AWS_ACCESS_KEY_ID, secretAccessKey: process.env.AWS_SECRET_KEY });
+const S3 = new AWS.S3();
 
 /**
  * @typedef format
@@ -59,13 +54,6 @@ const mongoose = require("mongoose");
  */
 const getMethod = (req, res) => {
   console.log(Date() + "-GET /products");
-  // const cmd = command.build();
-
-  // cmd
-  //   .execute()
-  //   .then((response) => res.status(200).json(response.data))
-  //   .catch((err) => res.sendStatus(500));
-
   const productId = req.query.productId;
   const providerId = req.query.providerId;
 
@@ -172,6 +160,58 @@ const deleteMethod = (req, res) => {
   });
 };
 
+
+/**
+ * Upload a product image
+ * @route POST /uploadImage
+ * @group Products - Products
+ * @param {file} imageName.formData.required -  Image
+ * @returns {json} 200 - Info about the image location
+ */
+const uploadImageToS3 = (req, res) => {
+  let chunks = [], fname, ftype, fEncoding;
+  let busboy = new Busboy({ headers: req.headers });
+  busboy.on('file', function(fieldname, file, filename, encoding, mimetype) {
+    console.log('File [' + fieldname + ']: filename: ' + filename + ', encoding: ' + encoding + ', mimetype: ' + mimetype);
+    fname = filename.replace(/ /g,"_");
+    ftype = mimetype;
+    fEncoding = encoding;
+    file.on('data', function(data) {
+        // you will get chunks here will pull all chunk to an array and later concat it.
+        console.log (chunks.length);
+        chunks.push(data)
+    });
+    file.on('end', function() {
+        console.log('File [' + filename + '] Finished');
+    });
+  });
+  busboy.on('finish', function() {
+      const userId = uuidv4();
+      const params = {
+          Bucket: process.env.IMAGE_UPLOAD_BUCKET, // your s3 bucket name
+          CreateBucketConfiguration: {
+            // Set your region here
+            LocationConstraint: process.env.REGION
+          },
+          Key: `${userId}-${fname}`, 
+          Body: Buffer.concat(chunks), // concatinating all chunks
+          ACL: 'public-read',
+          ContentEncoding: fEncoding, // optional
+          ContentType: ftype // required
+      }
+      // we are sending buffer data to s3.
+      S3.upload(params, (err, s3res) => {
+          if (err){
+            res.send({err, status: 'error'});
+          } else {
+            res.send({data:s3res, status: 'success', msg: 'Image successfully uploaded.'});
+          }
+      });
+      
+  });
+  req.pipe(busboy);
+};
+
 module.exports.register = (apiPrefix, router) => {
   router.get(apiPrefix + "/products", getMethod);
   router.post(
@@ -187,4 +227,8 @@ module.exports.register = (apiPrefix, router) => {
     putMethod
   );
   router.delete(apiPrefix + "/products", authorizeJWT, deleteMethod);
+  router.post(
+    apiPrefix + "/uploadImage",
+    uploadImageToS3
+  );
 };

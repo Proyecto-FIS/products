@@ -19,15 +19,18 @@
   "license": "ISC",
   "dependencies": {
     "@reactivex/rxjs": "^5.0.0",
+    "aws-sdk": "^2.815.0",
     "axios": "^0.21.0",
     "body-parser": "^1.19.0",
+    "busboy": "^0.3.1",
     "dotenv": "^8.2.0",
     "express": "^4.17.1",
     "express-swagger-generator": "^1.1.17",
     "hystrix-dashboard": "^1.0.3",
     "hystrixjs": "^0.2.0",
     "mongoose": "^5.11.0",
-    "nedb": "^1.8.0"
+    "nedb": "^1.8.0",
+    "uuid": "^8.3.2"
   },
   "devDependencies": {
     "jest": "^26.6.3",

@@ -1,28 +1,38 @@
 const axios = require("axios");
 const mongoose = require("mongoose");
-// const circuitBreaker = require("../circuitBreaker").configure;
-
-// var command = circuitBreaker({
-//   url: `${process.env.USERS_MS}/auth/${token}`,
-//   name: "sample request",
-//   timeout: 1000,
-//   fallback: { err: "error example" },
-// });
+const createCircuitBreaker = require("../circuitBreaker").createCircuitBreaker;
 
 /**
  * @typedef UserAuthError
  * @property {string} reason    - User-friendly reason message
  */
 
+const usersAuthService = createCircuitBreaker({
+  name: "usersAuthService",
+  errorThreshold: 20,
+  timeout: 8000,
+  healthRequests: 5,
+  sleepTimeMS: 100,
+  maxRequests: 0,
+  errorHandler: (err) => false,
+  request: (token) => axios.get(`${process.env.USERS_MS}/auth/${token}`),
+  fallback: (err, args) => {
+    if (err && err.isAxiosError) throw err;
+    throw {
+      response: {
+        status: 503,
+      },
+    };
+  },
+});
+
 const AuthorizeJWT = (req, res, next) => {
   const token = req.body.userToken || req.query.userToken;
-  axios
-    .get(`${process.env.USERS_MS}/auth/${token}`)
+
+  usersAuthService
+    .execute(token)
     .then((response) => {
       const userID = mongoose.Types.ObjectId(response.data.account_id);
-      const isCustomer = response.data.isCustomer;
-      if (isCustomer)
-        throw {response:{status: 403}}
       if (req.body.userToken) {
         req.body.userID = userID;
       } else {
@@ -31,15 +41,12 @@ const AuthorizeJWT = (req, res, next) => {
       next();
     })
     .catch((err) => {
-      if(err.response.status === 403){
-        res.status(403).json({reason: "Customers cann't operate this API"})
-      } 
-      else if (err.response.status === 500) {
+      if (err.response.status === 500) {
         res.status(401).json({ reason: "Authentication failed" });
       } else {
         res
-          .status(500)
-          .json({ reason: "Users service temporarily unavailable" });
+          .status(err.response.status)
+          .json({ reason: "Users service is down" });
       }
     });
 };

@@ -1,67 +1,27 @@
 const express = require("express");
-const expressSwagger = require("express-swagger-generator");
-const swagger = require("express-swagger-generator/lib/swagger");
+const swagger = require("./swagger");
 const db = require("./database");
 const circuitBreaker = require("./circuitBreaker");
-const dashboard = require("hystrix-dashboard");
-
-var commandFactory = require("hystrixjs").commandFactory;
-var metricsFactory = require("hystrixjs").metricsFactory;
-var circuitFactory = require("hystrixjs").circuitFactory;
-
-metricsFactory.resetCache();
-circuitFactory.resetCache();
-commandFactory.resetCache();
-
-const swaggerOptions = {
-  swaggerDefinition: {
-    info: {
-      description: "This is a sample server",
-      title: "Swagger",
-      version: "1.0.0",
-    },
-    host: process.env.HOSTNAME || "localhost:" + process.env.PORT,
-    basePath: "/api/v1",
-    produces: ["application/json"],
-    schemes: [process.env.SCHEMA],
-    securityDefinitions: {
-      JWT: {
-        type: "apiKey",
-        in: "header",
-        name: "Authorization",
-        description: "",
-      },
-    },
-  },
-  basedir: __dirname, //app absolute path
-  files: ["./routes/**/*.js"], //Path to the API handle folder
-};
 
 class App {
   constructor() {
     this.app = express();
     this.router = express.Router();
     this.server = null;
+    this.port = process.env.PORT || 8080;
 
     this.app.use(express.json());
     this.app.use(this.router);
 
     // Route registration
-    const apiPrefix = swaggerOptions.swaggerDefinition.basePath;
+    const apiPrefix = swagger.getBasePath();
     require("./routes/products").register(apiPrefix, this.router);
-    this.router.get("/hystrix.stream", circuitBreaker.hystrixStreamResponse);
 
-    this.app.use(
-      dashboard({
-        idleTimeout: 4000, // will emit "ping if no data comes within 4 seconds,
-        interval: 2000, // interval to collect metrics
-        proxy: true, // enable proxy for stream
-      })
-    );
+    circuitBreaker.initHystrixStream(this.router);
 
     this.app.use(App.errorHandler);
 
-    expressSwagger(this.app)(swaggerOptions);
+    swagger.setUpSwagger(this.app, this.port);
   }
 
   static errorHandler(err, req, res, next) {

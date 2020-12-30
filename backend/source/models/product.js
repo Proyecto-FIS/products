@@ -16,8 +16,19 @@ const ProductSchema = new Schema({
     type: String,
     required: [true, "An image link is mandatory"],
   },
-  providerId: Schema.Types.ObjectId,
-  grind: { type: [String], enum: ["Expresso", "Filtro", "Grano"] },
+  providerId: {
+    type: Schema.Types.ObjectId,
+    required: [true, "ProviderId required"] 
+  },
+  grind: { 
+    type: [String], 
+    validate: {
+      validator: function(v){
+        return Array.isArray(v) && v.length > 0
+      },
+      message: "Invalid grind type"
+    },
+  },
   format: [
     {
       name: { type: String, required: [true, "Kind of format required"] },

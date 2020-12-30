@@ -98,7 +98,7 @@ const postMethod = (req, res) => {
   Product.create(req.body.product, (err) => {
     if (err) {
       console.error(Date() + " - " + err);
-      res.sendStatus(500);
+      res.status(400).json(err);
     } else {
       res.status(201).json(req.body.product);
     }
@@ -204,13 +204,11 @@ module.exports.register = (apiPrefix, router) => {
   router.post(
     apiPrefix + "/products",
     authorizeJWT,
-    validators.validateProductData,
     postMethod
   );
   router.put(
     apiPrefix + "/products",
     authorizeJWT,
-    validators.validateProductData,
     putMethod
   );
   router.delete(apiPrefix + "/products", authorizeJWT, deleteMethod);

@@ -41,7 +41,7 @@ const AuthorizeJWT = (req, res, next) => {
       next();
     })
     .catch((err) => {
-      if (err.response.status === 500) {
+      if (err.response.status === 500 || err.response.status === 401) {
         res.status(401).json({ reason: "Authentication failed" });
       } else {
         res

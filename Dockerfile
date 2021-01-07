@@ -1,13 +1,13 @@
 FROM node:15-alpine
 
 WORKDIR /coffaine-products/backend
-COPY backend/package.json .
-COPY backend/package-lock.json .
+COPY package.json .
+COPY package-lock.json .
 RUN npm install
 
 WORKDIR /coffaine-products/backend
-COPY backend/env env
-COPY backend/source source
+COPY env env
+COPY source source
 
 EXPOSE 3000
 

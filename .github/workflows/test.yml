@@ -1,0 +1,36 @@
+name: Run tests
+
+on: [pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [12.19.0]
+        mongodb-version: [4.4]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Using Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Start MongoDB
+        uses: supercharge/mongodb-github-action@1.3.0
+        with:
+          mongodb-version: ${{ matrix.mongodb-version }}
+
+      - name: Backend testing
+        run: npm install && npm install -D && npm test
+        env:
+          PORT: 8080
+          DBSTRING: mongodb://localhost:27017/productsTest
+          SWAGGER_SCHEMA: http
+          USERS_MS: ${{secrets.USERS_MS}}
+          TEST_USERNAME: ${{secrets.TEST_USERNAME}}
+          TEST_PASSWORD: ${{secrets.TEST_PASSWORD}}
+          NODE_ENV: test

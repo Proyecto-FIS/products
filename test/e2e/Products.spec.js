@@ -46,24 +46,15 @@ describe("Products API", () => {
   });
 
   test("Missing product in POST", () => {
-    return makeRequest()
-      .post(testURL)
-      .send(userToken)
-      .expect(400, { reason: "Bad request, missing fields" });
+    return makeRequest().post(testURL).send(userToken).expect(400);
   });
 
   test("Missing product in PUT", () => {
-    return makeRequest()
-      .put(testURL)
-      .send(userToken)
-      .expect(400, { reason: "Bad request, missing fields" });
+    return makeRequest().put(testURL).send(userToken).expect(400);
   });
 
   test("Missing productID in DELETE", () => {
-    return makeRequest()
-      .delete(testURL)
-      .send(userToken)
-      .expect(400, { reason: "Bad request, missing fields" });
+    return makeRequest().delete(testURL).send(userToken).expect(400);
   });
 
   test("Correct CRUD", () => {

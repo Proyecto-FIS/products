@@ -65,7 +65,7 @@ class ProductController {
     new Product(req.body.product)
       .save()
       .then((doc) => res.status(201).send(doc))
-      .catch((err) => res.status(500).json(err.message));
+      .catch((err) => res.status(500).json(err));
   }
 
   /**
@@ -97,7 +97,7 @@ class ProductController {
         }
       })
       .then((doc) => res.status(200).json(doc))
-      .catch((err) => res.status(500).json({ reason: "Database error" + err }));
+      .catch((err) => res.status(500).json(err));
   }
 
   /**
@@ -116,7 +116,7 @@ class ProductController {
       providerId: req.body.userID,
     })
       .then((doc) => (doc ? res.status(200).json(doc) : res.sendStatus(401)))
-      .catch((err) => res.status(500).json({ reason: "Database error" }));
+      .catch((err) => res.status(500).json(err));
   }
 
   /**

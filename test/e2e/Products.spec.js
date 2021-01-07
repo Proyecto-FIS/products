@@ -52,14 +52,14 @@ describe("Products API", () => {
       .expect(400, { reason: "Bad request, missing fields" });
   });
 
-  test("Missing profile in PUT", () => {
+  test("Missing product in PUT", () => {
     return makeRequest()
       .put(testURL)
       .send(userToken)
       .expect(400, { reason: "Bad request, missing fields" });
   });
 
-  test("Missing profileID in DELETE", () => {
+  test("Missing productID in DELETE", () => {
     return makeRequest()
       .delete(testURL)
       .send(userToken)

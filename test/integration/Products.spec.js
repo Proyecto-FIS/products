@@ -185,7 +185,7 @@ describe("Products integration", () => {
       });
   });
 
-  test("Delete product", () => {
+  test("Delete foreign product", () => {
     return request(app)
       .post(testURL)
       .send({

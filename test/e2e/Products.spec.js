@@ -66,62 +66,64 @@ describe("Products API", () => {
       .expect(400, { reason: "Bad request, missing fields" });
   });
 
-  // test("Correct CRUD", () => {
-  //   const sampleProfile = {
-  //     name: "someName",
-  //     surname: "someSurname",
-  //     address: "someAddress",
-  //     city: "someCity",
-  //     province: "someProvince",
-  //     country: "someCountry",
-  //     zipCode: 12345,
-  //     phoneNumber: 123456789,
-  //     email: "email@email.com",
-  //   };
+  test("Correct CRUD", () => {
+    const sampleProduct = {
+      name: "testname",
+      description: "enough description for coffee of mercadona",
+      stock: 3,
+      imageUrl: "https://upload.wikimedia.org/wikipedia/commons.jpg",
+      grind: ["Expresso", "Grano"],
+      format: [
+        {
+          name: "250g",
+          price: 25,
+        },
+      ],
+    };
 
-  //   const updatedZip = 44444;
-  //   let profileID;
+    const updatedName = "thisIsMyNewName";
+    let productID;
 
-  //   return makeRequest()
-  //     .post(testURL)
-  //     .query({ userToken })
-  //     .send({ profile: sampleProfile })
-  //     .expect(200)
-  //     .then((response) => {
-  //       expect(mongoose.Types.ObjectId.isValid(response.body)).toBeTruthy();
-  //       profileID = response.body;
-  //       return makeRequest().get(testURL).query({ userToken }).expect(200);
-  //     })
-  //     .then((response) => {
-  //       expect(response.body.length).toBe(1);
-  //       expect(response.body[0]).toMatchObject(sampleProfile);
-  //       return makeRequest()
-  //         .put(testURL)
-  //         .query({ userToken })
-  //         .send({
-  //           profile: {
-  //             _id: profileID,
-  //             zipCode: updatedZip,
-  //           },
-  //         })
-  //         .expect(200);
-  //     })
-  //     .then((response) => {
-  //       sampleProfile.zipCode = updatedZip;
-  //       expect(response.body).toMatchObject(sampleProfile);
-  //       return makeRequest().get(testURL).query({ userToken }).expect(200);
-  //     })
-  //     .then((response) => {
-  //       expect(response.body.length).toBe(1);
-  //       expect(response.body[0]).toMatchObject(sampleProfile);
-  //       return makeRequest()
-  //         .delete(testURL)
-  //         .query({ userToken, profileID })
-  //         .expect(200);
-  //     })
-  //     .then((response) => {
-  //       expect(response.body).toMatchObject(sampleProfile);
-  //       return makeRequest().get(testURL).query({ userToken }).expect(200, []);
-  //     });
-  // });
+    return makeRequest()
+      .post(testURL)
+      .send({ product: sampleProduct, userToken })
+      .expect(201)
+      .then((response) => {
+        expect(
+          mongoose.Types.ObjectId.isValid(response.body.providerId)
+        ).toBeTruthy();
+        productID = response.body._id;
+        return makeRequest()
+          .get(testURL)
+          .query({ productId: productID })
+          .expect(200);
+      })
+      .then((response) => {
+        expect(response.body._id).toBe(productID);
+        expect(response.body.imageUrl).toBe(sampleProduct.imageUrl);
+        return makeRequest()
+          .put(testURL)
+          .query({ productId: productID })
+          .send({
+            product: {
+              name: updatedName,
+            },
+            userToken: userToken,
+          })
+          .expect(200);
+      })
+      .then(() => {
+        return makeRequest()
+          .delete(testURL)
+          .query({ productId: productID })
+          .send({ userToken: userToken })
+          .expect(200);
+      })
+      .then(() => {
+        return makeRequest()
+          .get(testURL)
+          .query({ productId: productID })
+          .expect(404);
+      });
+  });
 });

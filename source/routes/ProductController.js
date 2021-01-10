@@ -50,6 +50,24 @@ class ProductController {
   }
 
   /**
+   * Get products given an array of ids
+   * @route GET /products-several
+   * @group Products - Products
+   * @param {string} identifiers.query -  id1, id2, id3, id4 ...
+   * @returns {ProductsProfile} 200 - Returns wheter selected product or all products
+   * @returns {ProductsProfileError} default - unexpected error
+   */
+  getMethodSeveral(req, res) {
+    console.log(Date() + "-GET /products-several");
+    const identifiers = req.query.identifiers.split(",");
+    console.log(identifiers);
+
+    Product.find({ _id: { $in: identifiers } }).exec(function (err, products) {
+      res.send(products);
+    });
+  }
+
+  /**
    * Create a new products for a certain user
    * @route POST /products
    * @group Products - Products
@@ -191,7 +209,7 @@ class ProductController {
       Validators.Required("userToken"),
       authorizeJWT,
     ];
-
+    router.get(route + "-several", this.getMethodSeveral.bind(this));
     router.get(route, this.getMethod.bind(this));
     router.post(
       route,

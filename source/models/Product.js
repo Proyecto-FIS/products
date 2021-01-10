@@ -18,15 +18,15 @@ const ProductSchema = new Schema({
   },
   providerId: {
     type: Schema.Types.ObjectId,
-    required: [true, "ProviderId required"] 
+    required: [true, "ProviderId required"],
   },
-  grind: { 
-    type: [String], 
+  grind: {
+    type: [String],
     validate: {
-      validator: function(v){
-        return Array.isArray(v) && v.length > 0
+      validator: function (v) {
+        return Array.isArray(v) && v.length > 0;
       },
-      message: "Invalid grind type"
+      message: "Invalid grind type",
     },
   },
   format: [

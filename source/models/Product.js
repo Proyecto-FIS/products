@@ -2,8 +2,6 @@ const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
 const ProductSchema = new Schema({
-  stripe_price: { type: String, required: true },
-  stripe_product: { type: String, required: true },
   name: { type: String, required: [true, "Product name required"] },
   description: {
     type: String,

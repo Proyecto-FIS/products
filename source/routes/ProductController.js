@@ -10,8 +10,6 @@ AWS.config.update({
   secretAccessKey: process.env.AWS_SECRET_KEY,
 });
 const S3 = new AWS.S3();
-const stripe = require('stripe')(process.env.STRIPE_PUBLIC_KEY);
-
 
 class ProductController {
   /**
@@ -52,6 +50,24 @@ class ProductController {
   }
 
   /**
+   * Get products given an array of ids
+   * @route POST /products-several
+   * @group Products - Products
+   * @param {identifiers.model} identifiers.body.required -  id1, id2, id3, id4 ...
+   * @returns {ProductsProfile} 200 - Returns wheter selected product or all products
+   * @returns {ProductsProfileError} default - unexpected error
+   */
+  postMethodSeveral(req, res) {
+    console.log(Date() + "-POST /products-several");
+    const identifiers = req.body.identifiers;
+    console.log(identifiers);
+
+    Product.find({ _id: { $in: identifiers } }).exec(function (err, products) {
+      res.send(products);
+    });
+  }
+
+  /**
    * Create a new products for a certain user
    * @route POST /products
    * @group Products - Products
@@ -60,27 +76,10 @@ class ProductController {
    * @returns {ProductsProfileError} default - unexpected error
    */
   postMethod(req, res) {
-    // Guardo en product el objeto que devuelve stripe
-    req.body.product.format.map(stripePrice.create =>
-      const stripe_price = await stripe.prices.create({
-        unit_amount: req.body.product.format.price,
-        currency: 'eur',
-        recurring: {interval: 'month'},
-        product: new_product.id,
-      });
-      const stripe_product = await stripe.products.create({
-        name: req.body.product.name,
-        description: req.body.product.description
-      });
-      )
-    
-    // Guardo en price el objeto que devuelve stripe 
-   
-
     console.log(Date() + "-POST /products");
     delete req.body.product._id;
     req.body.product.stripe_price = stripe_price;
-    req.body.product.stripe_product = stripe_product; 
+    req.body.product.stripe_product = stripe_product;
     req.body.product.providerId = req.body.userID;
 
     new Product(req.body.product)
@@ -212,7 +211,11 @@ class ProductController {
       Validators.Required("userToken"),
       authorizeJWT,
     ];
-
+    router.post(
+      route + "-several",
+      Validators.Required("identifiers"),
+      this.postMethodSeveral.bind(this)
+    );
     router.get(route, this.getMethod.bind(this));
     router.post(
       route,
@@ -261,6 +264,11 @@ module.exports = ProductController;
 /**
  * @typedef userToken
  * @property {string} userToken.required - User Token
+ */
+
+/**
+ * @typedef identifiers
+ * @property {Array<string>} identifiers.required - Id of product
  */
 
 /**

@@ -10,6 +10,8 @@ AWS.config.update({
   secretAccessKey: process.env.AWS_SECRET_KEY,
 });
 const S3 = new AWS.S3();
+const stripe = require('stripe')(process.env.STRIPE_PUBLIC_KEY);
+
 
 class ProductController {
   /**
@@ -58,8 +60,27 @@ class ProductController {
    * @returns {ProductsProfileError} default - unexpected error
    */
   postMethod(req, res) {
+    // Guardo en product el objeto que devuelve stripe
+    req.body.product.format.map(stripePrice.create =>
+      const stripe_price = await stripe.prices.create({
+        unit_amount: req.body.product.format.price,
+        currency: 'eur',
+        recurring: {interval: 'month'},
+        product: new_product.id,
+      });
+      const stripe_product = await stripe.products.create({
+        name: req.body.product.name,
+        description: req.body.product.description
+      });
+      )
+    
+    // Guardo en price el objeto que devuelve stripe 
+   
+
     console.log(Date() + "-POST /products");
     delete req.body.product._id;
+    req.body.product.stripe_price = stripe_price;
+    req.body.product.stripe_product = stripe_product; 
     req.body.product.providerId = req.body.userID;
 
     new Product(req.body.product)

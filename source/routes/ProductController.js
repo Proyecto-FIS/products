@@ -78,8 +78,6 @@ class ProductController {
   postMethod(req, res) {
     console.log(Date() + "-POST /products");
     delete req.body.product._id;
-    req.body.product.stripe_price = stripe_price;
-    req.body.product.stripe_product = stripe_product;
     req.body.product.providerId = req.body.userID;
 
     new Product(req.body.product)

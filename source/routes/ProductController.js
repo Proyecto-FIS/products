@@ -51,15 +51,15 @@ class ProductController {
 
   /**
    * Get products given an array of ids
-   * @route POST /products-several
+   * @route GET /products-several
    * @group Products - Products
-   * @param {identifiers.model} identifiers.body.required -  id1, id2, id3, id4 ...
+   * @param {string} identifiers.query -  id1, id2, id3, id4 ...
    * @returns {ProductsProfile} 200 - Returns wheter selected product or all products
    * @returns {ProductsProfileError} default - unexpected error
    */
-  postMethodSeveral(req, res) {
-    console.log(Date() + "-POST /products-several");
-    const identifiers = req.body.identifiers;
+  getMethodSeveral(req, res) {
+    console.log(Date() + "-GET /products-several");
+    const identifiers = req.query.identifiers.split(",");
     console.log(identifiers);
 
     Product.find({ _id: { $in: identifiers } }).exec(function (err, products) {
@@ -211,11 +211,7 @@ class ProductController {
       Validators.Required("userToken"),
       authorizeJWT,
     ];
-    router.post(
-      route + "-several",
-      Validators.Required("identifiers"),
-      this.postMethodSeveral.bind(this)
-    );
+    router.get(route + "-several", this.getMethodSeveral.bind(this));
     router.get(route, this.getMethod.bind(this));
     router.post(
       route,
@@ -264,11 +260,6 @@ module.exports = ProductController;
 /**
  * @typedef userToken
  * @property {string} userToken.required - User Token
- */
-
-/**
- * @typedef identifiers
- * @property {Array<string>} identifiers.required - Id of product
  */
 
 /**

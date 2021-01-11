@@ -41,6 +41,23 @@ describe("Products integration", () => {
         },
       ],
     },
+    {
+      name: "testname3",
+      description: "for coffee of mercadona enough description",
+      stock: 15,
+      imageUrl: "https://images.unsplash.com/photo-1.2.1&auto",
+      grind: ["Expresso"],
+      format: [
+        {
+          name: "samename",
+          price: 48,
+        },
+        {
+          name: "samename",
+          price: 20,
+        },
+      ],
+    },
   ];
 
   beforeAll(() => {
@@ -64,6 +81,16 @@ describe("Products integration", () => {
       .post(testURL)
       .send({
         product: { name: "name" },
+        userID: mongoose.Types.ObjectId().toHexString(),
+      })
+      .expect(500);
+  });
+
+  test("Duplicated name in format", () => {
+    return request(app)
+      .post(testURL)
+      .send({
+        product: { ...preload[2] },
         userID: mongoose.Types.ObjectId().toHexString(),
       })
       .expect(500);

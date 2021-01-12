@@ -57,22 +57,3 @@ module.exports.stripePricesCreate = createCircuitBreaker({
         };
     },
 });
-
-module.exports.stripePricesUpdate = createCircuitBreaker({
-    name: "stripePricesUpdate",
-    errorThreshold: 20,
-    timeout: 20000,
-    healthRequests: 5,
-    sleepTimeMS: 100,
-    maxRequests: 0,
-    errorHandler: (err) => false,
-    request: (id, data) => stripe.prices.update(id, data),
-    fallback: (err, args) => {
-        if (err && err.isAxiosError) throw err;
-        throw {
-            response: {
-                status: 503,
-            },
-        };
-    },
-});

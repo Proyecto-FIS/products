@@ -1,7 +1,6 @@
 const Product = require("../models/Product");
 const authorizeJWT = require("../middlewares/AuthorizeJWT");
 const Validators = require("../middlewares/validators");
-const mongoose = require("mongoose");
 const AWS = require("aws-sdk");
 const { v4: uuidv4 } = require("uuid");
 const Busboy = require("busboy");
@@ -10,7 +9,7 @@ AWS.config.update({
     secretAccessKey: process.env.AWS_SECRET_KEY,
 });
 const S3 = new AWS.S3();
-const { stripeProductsCreate, stripePricesCreate, stripeProductsUpdate, stripePricesUpdate } = require("../stripeService");
+const { stripeProductsCreate, stripePricesCreate, stripeProductsUpdate } = require("../stripeService");
 
 class ProductController {
 
@@ -68,36 +67,32 @@ class ProductController {
         stripeProductsCreate.execute({
             name: req.body.product.name,
             description: req.body.product.description,
-        })
-            .catch(() => {
-                res.status(503).json({ reason: "Error creating product in Stripe" });
-            })
-            .then(product => {
-                req.body.product.stripe_id = product.id;
+        }).catch(() => {
+            res.status(503).json({ reason: "Error creating product in Stripe" });
+        }).then(product => {
+            req.body.product.stripe_id = product.id;
 
-                // Create prices for new product
-                const pricePromises = req.body.product.format.map((format, i) => {
+            // Create prices for new product
+            const pricePromises = req.body.product.format.map((format, i) => {
+                return stripePricesCreate.execute({
+                    unit_amount: format.price * 100,    // In cents
+                    currency: "eur",
+                    recurring: { interval: "month" },
+                    product: product.id
+                }).then(price => {
+                    req.body.product.format[i].stripe_sub_id = price.id;
                     return stripePricesCreate.execute({
                         unit_amount: format.price * 100,    // In cents
                         currency: "eur",
-                        recurring: { interval: "month" },
                         product: product.id
                     })
-                        .then(price => {
-                            req.body.product.format[i].stripe_sub_id = price.id;
-                            return stripePricesCreate.execute({
-                                unit_amount: format.price * 100,    // In cents
-                                currency: "eur",
-                                product: product.id
-                            })
-                        })
-                        .then(price => {
-                            req.body.product.format[i].stripe_id = price.id;
-                        });
+                }).then(price => {
+                    req.body.product.format[i].stripe_id = price.id;
                 });
-                return Promise.all(pricePromises);
-            })
-            .then(() => new Product(req.body.product).save())
+            });
+
+            return Promise.all(pricePromises);
+        }).then(() => new Product(req.body.product).save())
             .then((doc) => res.status(201).send(doc))
             .catch((err) => {
                 stripeProductsUpdate.execute(req.body.product.stripe_id, { active: false })
@@ -115,30 +110,43 @@ class ProductController {
      * @group Products - Products
      * @param {string} productId.query.required -  Product Id
      * @param {ProductsProfileAuth.model} product.body.required - New value for the product
-     * @returns {ProductsProfile} 200 - Returns the current state for this products
+     * @returns {ProductsProfile} 200 - Returns the current state for this product
      * @returns {ProductsProfileError} default - unexpected error
      */
     putMethod(req, res) {
         console.log(Date() + "-PUT /products/id");
-        //delete req.body.product._id;
-        delete req.body.product.providerId;
 
-        Product.findOneAndUpdate(
-            {
-                _id: req.query.productId,
-                providerId: req.body.userID,
-            },
-            req.body.product
-        )
-            .then((doc) => {
-                if (doc) {
-                    return Product.findById(doc._id);
-                } else {
-                    res.sendStatus(401);
-                }
+        // Delete critical fields from the request
+        delete req.body.product.providerId;
+        delete req.body.product.stripe_id;
+        for (let i = 0; i < req.body.product.format.length; i++) {
+            delete req.body.product.format[i].stripe_id;
+            delete req.body.product.format[i].stripe_sub_id;
+        }
+
+        // Perform update
+        Product.findById(req.query.productId)
+            .catch(err => {
+                res.status(401).json(err);
             })
-            .then((doc) => res.status(200).json(doc))
-            .catch((err) => res.status(500).json(err));
+            .then(doc => {
+                return stripeProductsUpdate.execute(doc.stripe_id, {
+                    name: req.body.product.name,
+                    description: req.body.product.description
+                });
+            })
+            .catch(() => {
+                res.status(503).json({ reason: "Error updating product in Stripe" });
+            })
+            .then(() => {
+                return Product.findOneAndUpdate({
+                    _id: req.query.productId,
+                    providerId: req.body.userID,
+                }, req.body.product);
+            })
+            .then(doc => Product.findById(doc._id))
+            .then(doc => res.status(200).json(doc))
+            .catch(err => res.status(500).json(err));
     }
 
     /**
@@ -152,11 +160,21 @@ class ProductController {
      */
     deleteMethod(req, res) {
         console.log(Date() + "-DELETE /products/id");
+
+        let deletedProduct = null;
         Product.findOneAndDelete({
             _id: req.query.productId,
             providerId: req.body.userID,
         })
-            .then((doc) => (doc ? res.status(200).json(doc) : res.sendStatus(401)))
+            .then((doc) => {
+                if(doc) {
+                    deletedProduct = doc;
+                    return stripeProductsUpdate.execute(doc.stripe_id, { active: false });
+                } else {
+                    res.sendStatus(401);
+                }
+            })
+            .then(() => res.status(200).json(deletedProduct), () => res.status(200).json(deletedProduct))
             .catch((err) => res.status(500).json(err));
     }
 

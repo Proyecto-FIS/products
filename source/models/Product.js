@@ -36,7 +36,7 @@ const ProductSchema = new Schema({
             price: {
                 type: Number,
                 required: [true, "Price required"],
-                min: [0, "Minimun price is zero"],
+                min: [0, "Minimum price is zero"],
             },
             stripe_id: { type: String, required: true },
             stripe_sub_id: { type: String, required: true },

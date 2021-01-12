@@ -6,229 +6,249 @@ const AWS = require("aws-sdk");
 const { v4: uuidv4 } = require("uuid");
 const Busboy = require("busboy");
 AWS.config.update({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_KEY,
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_KEY,
 });
 const S3 = new AWS.S3();
-const stripe = require('stripe')(process.env.STRIPE_PUBLIC_KEY);
-
+const { stripeProductsCreate, stripePricesCreate, stripeProductsUpdate, stripePricesUpdate } = require("../stripeService");
 
 class ProductController {
-  /**
-   * Get all products if empty, or selected product by _id wether providerId
-   * @route GET /products
-   * @group Products - Products
-   * @param {string} productId.query -  If empty returns all prodcuts, or use providerId parameter
-   * @param {string} providerId.query -  If empty returns all prodcuts,  or use productId parameter
-   * @returns {ProductsProfile} 200 - Returns wheter selected product or all products
-   * @returns {ProductsProfileError} default - unexpected error
-   */
-  getMethod(req, res) {
-    console.log(Date() + "-GET /products");
-    const productId = req.query.productId;
-    const providerId = req.query.providerId;
 
-    if (productId) {
-      Product.findOne({ _id: productId }).exec(function (err, product) {
-        if (product) {
-          res.send(product);
+    /**
+     * Get all products if empty, or selected product by _id wether providerId
+     * @route GET /products
+     * @group Products - Products
+     * @param {string} productId.query -  If empty returns all prodcuts, or use providerId parameter
+     * @param {string} providerId.query -  If empty returns all prodcuts,  or use productId parameter
+     * @returns {ProductsProfile} 200 - Returns wheter selected product or all products
+     * @returns {ProductsProfileError} default - unexpected error
+     */
+    getMethod(req, res) {
+        console.log(Date() + "-GET /products");
+        const productId = req.query.productId;
+        const providerId = req.query.providerId;
+
+        if (productId) {
+            Product.findOne({ _id: productId }).exec(function (err, product) {
+                if (product) {
+                    res.send(product);
+                } else {
+                    res.sendStatus(404);
+                }
+            });
+        } else if (providerId) {
+            Product.find({ providerId: providerId }).exec(function (err, product) {
+                if (product) {
+                    res.send(product);
+                } else {
+                    res.sendStatus(404);
+                }
+            });
         } else {
-          res.sendStatus(404);
+            Product.find({}).exec(function (err, products) {
+                res.send(products);
+            });
         }
-      });
-    } else if (providerId) {
-      Product.find({ providerId: providerId }).exec(function (err, product) {
-        if (product) {
-          res.send(product);
-        } else {
-          res.sendStatus(404);
-        }
-      });
-    } else {
-      Product.find({}).exec(function (err, products) {
-        res.send(products);
-      });
     }
-  }
 
-  /**
-   * Create a new products for a certain user
-   * @route POST /products
-   * @group Products - Products
-   * @param {ProductsProfileAuth.model} product.body.required - New product
-   * @returns {integer} 200 - Returns the  created product
-   * @returns {ProductsProfileError} default - unexpected error
-   */
-  postMethod(req, res) {
-    // Guardo en product el objeto que devuelve stripe
-    req.body.product.format.map(stripePrice.create =>
-      const stripe_price = await stripe.prices.create({
-        unit_amount: req.body.product.format.price,
-        currency: 'eur',
-        recurring: {interval: 'month'},
-        product: new_product.id,
-      });
-      const stripe_product = await stripe.products.create({
-        name: req.body.product.name,
-        description: req.body.product.description
-      });
-      )
-    
-    // Guardo en price el objeto que devuelve stripe 
-   
+    /**
+     * Create a new products for a certain user
+     * @route POST /products
+     * @group Products - Products
+     * @param {ProductsProfileAuth.model} product.body.required - New product
+     * @returns {integer} 200 - Returns the  created product
+     * @returns {ProductsProfileError} default - unexpected error
+     */
+    postMethod(req, res) {
+        console.log(Date() + "-POST /products");
+        delete req.body.product._id;
+        req.body.product.providerId = req.body.userID;
 
-    console.log(Date() + "-POST /products");
-    delete req.body.product._id;
-    req.body.product.stripe_price = stripe_price;
-    req.body.product.stripe_product = stripe_product; 
-    req.body.product.providerId = req.body.userID;
+        // Create product in stripe
+        stripeProductsCreate.execute({
+            name: req.body.product.name,
+            description: req.body.product.description,
+        })
+            .catch(() => {
+                res.status(503).json({ reason: "Error creating product in Stripe" });
+            })
+            .then(product => {
+                req.body.product.stripe_id = product.id;
 
-    new Product(req.body.product)
-      .save()
-      .then((doc) => res.status(201).send(doc))
-      .catch((err) => res.status(500).json(err));
-  }
+                // Create prices for new product
+                const pricePromises = req.body.product.format.map((format, i) => {
+                    return stripePricesCreate.execute({
+                        unit_amount: format.price * 100,    // In cents
+                        currency: "eur",
+                        recurring: { interval: "month" },
+                        product: product.id
+                    })
+                        .then(price => {
+                            req.body.product.format[i].stripe_sub_id = price.id;
+                            return stripePricesCreate.execute({
+                                unit_amount: format.price * 100,    // In cents
+                                currency: "eur",
+                                product: product.id
+                            })
+                        })
+                        .then(price => {
+                            req.body.product.format[i].stripe_id = price.id;
+                        });
+                });
+                return Promise.all(pricePromises);
+            })
+            .then(() => new Product(req.body.product).save())
+            .then((doc) => res.status(201).send(doc))
+            .catch((err) => {
+                stripeProductsUpdate.execute(req.body.product.stripe_id, { active: false })
+                    .then(() => res.status(500).json(err))
+                    // Product fails to deactivate, we can't do more
+                    // Still unusable by the app cause there is no entry in the DB
+                    // Some manual deletion in Stripe dashboard must be made to delete junk data
+                    .catch(() => res.status(500).json(err));
+            });
+    }
 
-  /**
-   * Update an existing products
-   * @route PUT /products
-   * @group Products - Products
-   * @param {string} productId.query.required -  Product Id
-   * @param {ProductsProfileAuth.model} product.body.required - New value for the product
-   * @returns {ProductsProfile} 200 - Returns the current state for this products
-   * @returns {ProductsProfileError} default - unexpected error
-   */
-  putMethod(req, res) {
-    console.log(Date() + "-PUT /products/id");
-    //delete req.body.product._id;
-    delete req.body.product.providerId;
+    /**
+     * Update an existing products
+     * @route PUT /products
+     * @group Products - Products
+     * @param {string} productId.query.required -  Product Id
+     * @param {ProductsProfileAuth.model} product.body.required - New value for the product
+     * @returns {ProductsProfile} 200 - Returns the current state for this products
+     * @returns {ProductsProfileError} default - unexpected error
+     */
+    putMethod(req, res) {
+        console.log(Date() + "-PUT /products/id");
+        //delete req.body.product._id;
+        delete req.body.product.providerId;
 
-    Product.findOneAndUpdate(
-      {
-        _id: req.query.productId,
-        providerId: req.body.userID,
-      },
-      req.body.product
-    )
-      .then((doc) => {
-        if (doc) {
-          return Product.findById(doc._id);
-        } else {
-          res.sendStatus(401);
-        }
-      })
-      .then((doc) => res.status(200).json(doc))
-      .catch((err) => res.status(500).json(err));
-  }
+        Product.findOneAndUpdate(
+            {
+                _id: req.query.productId,
+                providerId: req.body.userID,
+            },
+            req.body.product
+        )
+            .then((doc) => {
+                if (doc) {
+                    return Product.findById(doc._id);
+                } else {
+                    res.sendStatus(401);
+                }
+            })
+            .then((doc) => res.status(200).json(doc))
+            .catch((err) => res.status(500).json(err));
+    }
 
-  /**
-   * Deletes an existing product
-   * @route DELETE /products
-   * @group Products - Products
-   * @param {string} productId.query.required -  Product Id
-   * @param {userToken.model} userToken.body.required -  UserToken
-   * @returns {ProductsProfile} 200 - Returns the current state for this products profile
-   * @returns {ProductsProfileError} default - unexpected error
-   */
-  deleteMethod(req, res) {
-    console.log(Date() + "-DELETE /products/id");
-    Product.findOneAndDelete({
-      _id: req.query.productId,
-      providerId: req.body.userID,
-    })
-      .then((doc) => (doc ? res.status(200).json(doc) : res.sendStatus(401)))
-      .catch((err) => res.status(500).json(err));
-  }
+    /**
+     * Deletes an existing product
+     * @route DELETE /products
+     * @group Products - Products
+     * @param {string} productId.query.required -  Product Id
+     * @param {userToken.model} userToken.body.required -  UserToken
+     * @returns {ProductsProfile} 200 - Returns the current state for this products profile
+     * @returns {ProductsProfileError} default - unexpected error
+     */
+    deleteMethod(req, res) {
+        console.log(Date() + "-DELETE /products/id");
+        Product.findOneAndDelete({
+            _id: req.query.productId,
+            providerId: req.body.userID,
+        })
+            .then((doc) => (doc ? res.status(200).json(doc) : res.sendStatus(401)))
+            .catch((err) => res.status(500).json(err));
+    }
 
-  /**
-   * Upload a product image
-   * @route POST /uploadImage
-   * @group Products - Products
-   * @param {file} imageName.formData.required -  Image
-   * @returns {json} 200 - Info about the image location
-   */
-  uploadImageToS3(req, res) {
-    let chunks = [],
-      fname,
-      ftype,
-      fEncoding;
-    let busboy = new Busboy({ headers: req.headers });
-    busboy.on("file", function (fieldname, file, filename, encoding, mimetype) {
-      console.log(
-        "File [" +
-          fieldname +
-          "]: filename: " +
-          filename +
-          ", encoding: " +
-          encoding +
-          ", mimetype: " +
-          mimetype
-      );
-      fname = filename.replace(/ /g, "_");
-      ftype = mimetype;
-      fEncoding = encoding;
-      file.on("data", function (data) {
-        // you will get chunks here will pull all chunk to an array and later concat it.
-        console.log(chunks.length);
-        chunks.push(data);
-      });
-      file.on("end", function () {
-        console.log("File [" + filename + "] Finished");
-      });
-    });
-    busboy.on("finish", function () {
-      const userId = uuidv4();
-      const params = {
-        Bucket: process.env.IMAGE_UPLOAD_BUCKET, // your s3 bucket name
-        CreateBucketConfiguration: {
-          // Set your region here
-          LocationConstraint: process.env.REGION,
-        },
-        Key: `${userId}-${fname}`,
-        Body: Buffer.concat(chunks), // concatinating all chunks
-        ACL: "public-read",
-        ContentEncoding: fEncoding, // optional
-        ContentType: ftype, // required
-      };
-      // we are sending buffer data to s3.
-      S3.upload(params, (err, s3res) => {
-        if (err) {
-          res.send({ err, status: "error" });
-        } else {
-          res.send({
-            data: s3res,
-            status: "success",
-            msg: "Image successfully uploaded.",
-          });
-        }
-      });
-    });
-    req.pipe(busboy);
-  }
+    /**
+     * Upload a product image
+     * @route POST /uploadImage
+     * @group Products - Products
+     * @param {file} imageName.formData.required -  Image
+     * @returns {json} 200 - Info about the image location
+     */
+    uploadImageToS3(req, res) {
+        let chunks = [],
+            fname,
+            ftype,
+            fEncoding;
+        let busboy = new Busboy({ headers: req.headers });
+        busboy.on("file", function (fieldname, file, filename, encoding, mimetype) {
+            console.log(
+                "File [" +
+                fieldname +
+                "]: filename: " +
+                filename +
+                ", encoding: " +
+                encoding +
+                ", mimetype: " +
+                mimetype
+            );
+            fname = filename.replace(/ /g, "_");
+            ftype = mimetype;
+            fEncoding = encoding;
+            file.on("data", function (data) {
+                // you will get chunks here will pull all chunk to an array and later concat it.
+                console.log(chunks.length);
+                chunks.push(data);
+            });
+            file.on("end", function () {
+                console.log("File [" + filename + "] Finished");
+            });
+        });
+        busboy.on("finish", function () {
+            const userId = uuidv4();
+            const params = {
+                Bucket: process.env.IMAGE_UPLOAD_BUCKET, // your s3 bucket name
+                CreateBucketConfiguration: {
+                    // Set your region here
+                    LocationConstraint: process.env.REGION,
+                },
+                Key: `${userId}-${fname}`,
+                Body: Buffer.concat(chunks), // concatinating all chunks
+                ACL: "public-read",
+                ContentEncoding: fEncoding, // optional
+                ContentType: ftype, // required
+            };
+            // we are sending buffer data to s3.
+            S3.upload(params, (err, s3res) => {
+                if (err) {
+                    res.send({ err, status: "error" });
+                } else {
+                    res.send({
+                        data: s3res,
+                        status: "success",
+                        msg: "Image successfully uploaded.",
+                    });
+                }
+            });
+        });
+        req.pipe(busboy);
+    }
 
-  constructor(apiPrefix, router) {
-    const route = `${apiPrefix}/products`;
-    const userTokenValidators = [
-      Validators.Required("userToken"),
-      authorizeJWT,
-    ];
+    constructor(apiPrefix, router) {
+        const route = `${apiPrefix}/products`;
+        const userTokenValidators = [
+            Validators.Required("userToken"),
+            authorizeJWT,
+        ];
 
-    router.get(route, this.getMethod.bind(this));
-    router.post(
-      route,
-      ...userTokenValidators,
-      Validators.Required("product"),
-      this.postMethod.bind(this)
-    );
-    router.put(
-      route,
-      ...userTokenValidators,
-      Validators.Required("product"),
-      this.putMethod.bind(this)
-    );
-    router.delete(route, ...userTokenValidators, this.deleteMethod.bind(this));
-    router.post(apiPrefix + "/uploadImage", this.uploadImageToS3.bind(this));
-  }
+        router.get(route, this.getMethod.bind(this));
+        router.post(
+            route,
+            ...userTokenValidators,
+            Validators.Required("product"),
+            this.postMethod.bind(this)
+        );
+        router.put(
+            route,
+            ...userTokenValidators,
+            Validators.Required("product"),
+            this.putMethod.bind(this)
+        );
+        router.delete(route, ...userTokenValidators, this.deleteMethod.bind(this));
+        router.post(apiPrefix + "/uploadImage", this.uploadImageToS3.bind(this));
+    }
 }
 
 module.exports = ProductController;

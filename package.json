@@ -12,8 +12,7 @@
     "start": "node -r dotenv/config source/boot.js dotenv_config_path=env/devel.env",
     "start:prod": "node -r dotenv/config source/boot.js dotenv_config_path=env/prod.env",
     "test": "jest ./test --silent -i",
-    "coverage": "nyc npm test",
-    "swagger": "node source/swagger-gen.js"
+    "coverage": "nyc npm test"
   },
   "author": "Coffaine",
   "license": "ISC",
@@ -29,6 +28,7 @@
     "hystrix-dashboard": "^1.0.3",
     "hystrixjs": "^0.2.0",
     "mongoose": "^5.11.0",
+    "stripe": "^8.130.0",
     "uuid": "^8.3.2"
   },
   "devDependencies": {

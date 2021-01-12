@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 class DatabaseConnection {
   setup() {
-    console.log(`[DB] Connecting to ${process.env.DBNAME}`);
+    console.log(`[DB] Connecting to ${process.env.DBSTRING}`);
 
     mongoose.connection.once("connected", () => {
       console.log("[DB] Connection Established");

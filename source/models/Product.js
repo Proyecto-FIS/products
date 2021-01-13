@@ -38,8 +38,7 @@ const ProductSchema = new Schema({
                 required: [true, "Price required"],
                 min: [0, "Minimum price is zero"],
             },
-            stripe_id: { type: String, required: true },
-            stripe_sub_id: { type: String, required: true },
+            stripe_id: { type: String, required: true }
         },
     ],
 });

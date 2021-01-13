@@ -9,7 +9,8 @@ AWS.config.update({
     secretAccessKey: process.env.AWS_SECRET_KEY,
 });
 const S3 = new AWS.S3();
-const { stripeProductsCreate, stripePricesCreate, stripeProductsUpdate } = require("../stripeService");
+const { stripeProductsCreate, stripePricesCreate, stripeProductsUpdate, stripePricesUpdate } = require("../stripeService");
+const stripe = require('stripe');
 
 class ProductController {
 
@@ -58,50 +59,53 @@ class ProductController {
      * @returns {integer} 200 - Returns the  created product
      * @returns {ProductsProfileError} default - unexpected error
      */
-    postMethod(req, res) {
+    async postMethod(req, res) {
         console.log(Date() + "-POST /products");
         delete req.body.product._id;
         req.body.product.providerId = req.body.userID;
 
-        // Create product in stripe
-        stripeProductsCreate.execute({
-            name: req.body.product.name,
-            description: req.body.product.description,
-        }).catch(() => {
-            res.status(503).json({ reason: "Error creating product in Stripe" });
-        }).then(product => {
-            req.body.product.stripe_id = product.id;
+        // Create product in Stripe
+        let product;
+        try {
+            product = await stripeProductsCreate.execute(this.stripeClient, {
+                name: req.body.product.name
+            });
 
-            // Create prices for new product
+            req.body.product.stripe_id = product.id;
+        } catch (err) {
+            return res.status(503).json({ reason: "Error creating product in Stripe" });
+        }
+
+        try {
+
             const pricePromises = req.body.product.format.map((format, i) => {
-                return stripePricesCreate.execute({
+                return stripePricesCreate.execute(this.stripeClient, {
                     unit_amount: format.price * 100,    // In cents
                     currency: "eur",
                     recurring: { interval: "month" },
-                    product: product.id
-                }).then(price => {
-                    req.body.product.format[i].stripe_sub_id = price.id;
-                    return stripePricesCreate.execute({
-                        unit_amount: format.price * 100,    // In cents
-                        currency: "eur",
-                        product: product.id
-                    })
+                    product: product.id,
+                    nickname: format.name
                 }).then(price => {
                     req.body.product.format[i].stripe_id = price.id;
                 });
             });
 
-            return Promise.all(pricePromises);
-        }).then(() => new Product(req.body.product).save())
-            .then((doc) => res.status(201).send(doc))
-            .catch((err) => {
-                stripeProductsUpdate.execute(req.body.product.stripe_id, { active: false })
-                    .then(() => res.status(500).json(err))
-                    // Product fails to deactivate, we can't do more
-                    // Still unusable by the app cause there is no entry in the DB
-                    // Some manual deletion in Stripe dashboard must be made to delete junk data
-                    .catch(() => res.status(500).json(err));
-            });
+            // Create prices for new product
+            await Promise.all(pricePromises);
+
+            // Save product in database
+            const doc = await new Product(req.body.product).save();
+            return res.status(201).send(doc);
+        } catch (err) {
+            try {
+                await stripeProductsUpdate.execute(this.stripeClient, req.body.product.stripe_id, { active: false });
+            } catch (err) {
+                // Product fails to deactivate, we can't do more
+                // Still unusable by the app cause there is no entry in the DB
+                // Some manual deletion in Stripe dashboard must be made to delete junk data
+            }
+            return res.status(500).json(err);
+        }
     }
 
     /**
@@ -113,40 +117,113 @@ class ProductController {
      * @returns {ProductsProfile} 200 - Returns the current state for this product
      * @returns {ProductsProfileError} default - unexpected error
      */
-    putMethod(req, res) {
+    async putMethod(req, res) {
         console.log(Date() + "-PUT /products/id");
+
+        // NOTE: This can cause inconsistencies between Stripe & DB product data if one
+        // operation succeeds and the other fails, and viceversa
+        // Lesson learned: store price data only in Stripe to avoid these inconsistencies
+        // or add a Message Queue to ensure eventual data consistency
+        // As there is not much time to perform a complete refactorization, we leave it as it is
 
         // Delete critical fields from the request
         delete req.body.product.providerId;
         delete req.body.product.stripe_id;
-        for (let i = 0; i < req.body.product.format.length; i++) {
-            delete req.body.product.format[i].stripe_id;
-            delete req.body.product.format[i].stripe_sub_id;
+        if (req.body.product.hasOwnProperty("format")) {
+            for (let i = 0; i < req.body.product.format.length; i++) {
+                delete req.body.product.format[i].stripe_id;
+            }
         }
 
-        // Perform update
-        Product.findById(req.query.productId)
-            .catch(err => {
-                res.status(401).json(err);
-            })
-            .then(doc => {
-                return stripeProductsUpdate.execute(doc.stripe_id, {
-                    name: req.body.product.name,
-                    description: req.body.product.description
+        // Check user has access to product
+        let oldProduct = await Product.findOne({ _id: req.query.productId, providerId: req.body.userID });
+        if (!oldProduct) return res.sendStatus(401);
+        req.body.product.stripe_id = oldProduct.stripe_id;
+
+        // Update product name
+        if (req.body.product.hasOwnProperty("name")) {
+            try {
+                await stripeProductsUpdate.execute(this.stripeClient, oldProduct.stripe_id, {
+                    name: req.body.product.name
                 });
-            })
-            .catch(() => {
-                res.status(503).json({ reason: "Error updating product in Stripe" });
-            })
-            .then(() => {
-                return Product.findOneAndUpdate({
+            } catch (err) {
+                return res.status(503).json({ reason: "Error updating product in Stripe" });
+            }
+        }
+
+        // Update product prices
+        if (req.body.product.hasOwnProperty("format")) {
+
+            // Create new prices & update modified ones
+            let pricePromises = req.body.product.format.map((format, i) => {
+
+                const oldFormat = oldProduct.format.find(oldfmt => oldfmt.name === format.name);
+
+                // Format not found, create new price
+                if (!oldFormat) {
+                    return stripePricesCreate.execute(this.stripeClient, {
+                        unit_amount: format.price * 100,    // In cents
+                        currency: "eur",
+                        recurring: { interval: "month" },
+                        product: oldProduct.stripe_id,
+                        nickname: format.name
+                    }).then(price => {
+                        req.body.product.format.find(v => v.name === price.nickname).stripe_id = price.id;
+                    });
+                } else {
+
+                    // Check if price changed and update if needed
+                    if (Math.abs(oldFormat.price - format.price) < Number.EPSILON) {
+                        req.body.product.format[i].stripe_id = oldFormat.stripe_id;
+                        return async () => { }
+                    } else {
+                        return stripePricesCreate.execute(this.stripeClient, {
+                            unit_amount: format.price * 100,    // In cents
+                            currency: "eur",
+                            recurring: { interval: "month" },
+                            product: oldProduct.stripe_id,
+                            nickname: format.name,
+                            metadata: { replacedPrice: oldFormat.stripe_id }
+                        }).then(price => {
+                            req.body.product.format.find(v => v.name === price.nickname).stripe_id = price.id;
+                            return stripePricesUpdate.execute(this.stripeClient, price.metadata.replacedPrice, { active: false });
+                        });
+                    }
+                }
+            });
+
+            // Disable deleted prices
+            oldProduct.format.forEach((format, i) => {
+                const foundFormat = req.body.product.format.find(fmt => fmt.name === format.name);
+
+                if(!foundFormat) {
+                    const pricePromise = stripePricesUpdate.execute(this.stripeClient, format.stripe_id, { active: false });
+                    pricePromises.push(pricePromise);
+                }
+            });
+
+            // Update prices in Stripe
+            try {
+                await Promise.all(pricePromises);
+            } catch (err) {
+                return res.status(503).json({ reason: "Error updating prices in Stripe" });
+            }
+        }
+
+        // Update product in database
+        try {
+            let doc = await Product.findOneAndUpdate(
+                {
                     _id: req.query.productId,
                     providerId: req.body.userID,
-                }, req.body.product);
-            })
-            .then(doc => Product.findById(doc._id))
-            .then(doc => res.status(200).json(doc))
-            .catch(err => res.status(500).json(err));
+                },
+                req.body.product
+            );
+            doc = await Product.findById(doc._id);
+            return res.status(200).json(doc);
+        } catch (err) {
+            return res.status(500).json(err);
+        }
     }
 
     /**
@@ -158,24 +235,28 @@ class ProductController {
      * @returns {ProductsProfile} 200 - Returns the current state for this products profile
      * @returns {ProductsProfileError} default - unexpected error
      */
-    deleteMethod(req, res) {
+    async deleteMethod(req, res) {
         console.log(Date() + "-DELETE /products/id");
 
-        let deletedProduct = null;
-        Product.findOneAndDelete({
-            _id: req.query.productId,
-            providerId: req.body.userID,
-        })
-            .then((doc) => {
-                if(doc) {
-                    deletedProduct = doc;
-                    return stripeProductsUpdate.execute(doc.stripe_id, { active: false });
-                } else {
-                    res.sendStatus(401);
-                }
-            })
-            .then(() => res.status(200).json(deletedProduct), () => res.status(200).json(deletedProduct))
-            .catch((err) => res.status(500).json(err));
+        // Delete product
+        let doc;
+        try {
+            doc = await Product.findOneAndDelete({
+                _id: req.query.productId,
+                providerId: req.body.userID,
+            });
+            if(!doc) return res.sendStatus(401);
+        } catch(err) {
+            return res.status(500).json(err);
+        }
+
+        // Disable product in Stripe
+        try {
+            await stripeProductsUpdate.execute(this.stripeClient, doc.stripe_id, { active: false });
+        } catch(err) {
+            // Not accesible by the app anyways, only helps with garbage data cleanup
+        }
+        return res.status(200).json(doc);
     }
 
     /**
@@ -266,6 +347,8 @@ class ProductController {
         );
         router.delete(route, ...userTokenValidators, this.deleteMethod.bind(this));
         router.post(apiPrefix + "/uploadImage", this.uploadImageToS3.bind(this));
+
+        this.stripeClient = stripe(process.env.STRIPE_SECRET_KEY);
     }
 }
 

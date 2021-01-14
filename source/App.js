@@ -20,6 +20,7 @@ class App {
     this.ProductsController = new ProductsController(apiPrefix, this.router);
 
     circuitBreaker.initHystrixStream(this.router);
+    circuitBreaker.initHystrixDashboard(this.app);
 
     this.app.use(App.errorHandler);
 

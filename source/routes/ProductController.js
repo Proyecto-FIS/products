@@ -107,6 +107,24 @@ class ProductController {
             return res.status(500).json(err);
         }
     }
+  
+    /**
+   * Get products given an array of ids
+   * @route GET /products-several
+   * @group Products - Products
+   * @param {string} identifiers.query -  id1, id2, id3, id4 ...
+   * @returns {ProductsProfile} 200 - Returns wheter selected product or all products
+   * @returns {ProductsProfileError} default - unexpected error
+   */
+   getMethodSeveral(req, res) {
+       console.log(Date() + "-GET /products-several");
+       const identifiers = req.query.identifiers.split(",");
+       console.log(identifiers);
+
+       Product.find({ _id: { $in: identifiers } }).exec(function (err, products) {
+           res.send(products);
+       });
+   }
 
     /**
      * Update an existing products
@@ -256,6 +274,7 @@ class ProductController {
         } catch(err) {
             // Not accesible by the app anyways, only helps with garbage data cleanup
         }
+      
         return res.status(200).json(doc);
     }
 
@@ -332,6 +351,7 @@ class ProductController {
             authorizeJWT,
         ];
 
+        router.get(route + "-several", this.getMethodSeveral.bind(this));
         router.get(route, this.getMethod.bind(this));
         router.post(
             route,

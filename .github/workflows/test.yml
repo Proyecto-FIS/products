@@ -33,4 +33,5 @@ jobs:
           USERS_MS: ${{secrets.USERS_MS}}
           TEST_USERNAME: ${{secrets.TEST_USERNAME}}
           TEST_PASSWORD: ${{secrets.TEST_PASSWORD}}
+          STRIPE_SECRET_KEY: ${{secrets.STRIPE_SECRET_KEY}} 
           NODE_ENV: test

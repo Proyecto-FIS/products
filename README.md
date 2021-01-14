@@ -1,7 +1,6 @@
 # Products Management Microservice
 ![Deploy on Heroku](https://github.com/Proyecto-FIS/products/workflows/Deploy%20on%20Heroku/badge.svg)
 
-
 ## Product Schema
 ```
 Product:
@@ -31,10 +30,11 @@ NODE_ENV: development, test or production<br/>
 PORT: port to attach to the server. In production environment, this one is provided by Heroku<br/>
 DBSTRING: database connection string. Example: mongodb://localhost:27017/coffaine-sales<br/>
 HOSTNAME: only needed in production environment. It shouldn't be set in any other one<br/>
-SWAGGER_SCHEMA: http or https. It is used for Swagger "Try it" operations<br/>
+SCHEMA: http or https. It is used for Swagger "Try it" operations<br/>
 USERS_MS: URL pointing to the users microservice (including /api/version)<br/>
 TEST_USERNAME: Test username (only in test environment)<br/>
 TEST_PASSWORD: Test user password (only in test environment)
+STRIPE_SECRET_KEY: Stripe sandbox private key
 
 ## API URL
 [Coffaine Products](https://coffaine-products.herokuapp.com/)

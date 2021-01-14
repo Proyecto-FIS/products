@@ -5,6 +5,7 @@ const uniqueArrayPlugin = require("mongoose-unique-array");
 
 const ProductSchema = new Schema({
   name: { type: String, required: [true, "Product name required"] },
+  stripe_id: { type: String, required: true },
   description: {
     type: String,
     minlength: [25, "Minimun description length 25 characters"],
@@ -43,6 +44,7 @@ const ProductSchema = new Schema({
         required: [true, "Price required"],
         min: [0, "Minimun price is zero"],
       },
+      stripe_id: { type: String, required: true }
     },
   ],
 });

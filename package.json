@@ -12,8 +12,7 @@
     "start": "node -r dotenv/config source/boot.js dotenv_config_path=env/devel.env",
     "start:prod": "node -r dotenv/config source/boot.js dotenv_config_path=env/prod.env",
     "test": "jest ./test --silent -i",
-    "coverage": "nyc npm test",
-    "swagger": "node source/swagger-gen.js"
+    "coverage": "nyc npm test"
   },
   "author": "Coffaine",
   "license": "ISC",

@@ -36,10 +36,6 @@ const ProductSchema = new Schema({
       name: {
         type: String,
         required: [true, "Kind of format required"],
-        validate: {
-          validator: function (currentName) {
-            return this.reduce((counter, v) => v.name === currentName ? counter + 1 : counter,0) < 2
-        },
       },
       price: {
         type: Number,

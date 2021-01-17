@@ -57,6 +57,28 @@ describe("Products API", () => {
     return makeRequest().delete(testURL).send(userToken).expect(400);
   });
 
+  test("Duplicated name in format", () => {
+    return makeRequest().post(testURL).send({ 
+      product: {
+        name: "testname3",
+        description: "for coffee of mercadona enough description",
+        stock: 15,
+        imageUrl: "https://images.unsplash.com/photo-1.2.1&auto",
+        grind: ["Expresso"],
+        format: [
+          {
+            name: "samename",
+            price: 48,
+          },
+          {
+            name: "samename",
+            price: 20,
+          },
+        ],
+      },
+      userToken: userToken
+    }).expect(500);
+  });
   test("Correct CRUD", () => {
     const sampleProduct = {
       name: "testname",

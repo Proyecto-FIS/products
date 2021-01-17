@@ -119,8 +119,6 @@ class ProductController {
    getMethodSeveral(req, res) {
        console.log(Date() + "-GET /products-several");
        const identifiers = req.query.identifiers.split(",");
-       console.log(identifiers);
-
        Product.find({ _id: { $in: identifiers } }).exec(function (err, products) {
            res.send(products);
        });
@@ -357,12 +355,14 @@ class ProductController {
             route,
             ...userTokenValidators,
             Validators.Required("product"),
+            Validators.UniqueFormatName(),
             this.postMethod.bind(this)
         );
         router.put(
             route,
             ...userTokenValidators,
             Validators.Required("product"),
+            Validators.UniqueFormatName(),
             this.putMethod.bind(this)
         );
         router.delete(route, ...userTokenValidators, this.deleteMethod.bind(this));

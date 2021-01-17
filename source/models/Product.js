@@ -22,6 +22,11 @@ const ProductSchema = new Schema({
     type: Schema.Types.ObjectId,
     required: [true, "ProviderId required"],
   },
+  deleted: {
+    type: Boolean,
+    required: [true, "Logic delete required"],
+    default: false,
+  },
   grind: {
     type: [String],
     validate: {
@@ -42,7 +47,7 @@ const ProductSchema = new Schema({
         required: [true, "Price required"],
         min: [0, "Minimun price is zero"],
       },
-      stripe_id: { type: String, required: true }
+      stripe_id: { type: String, required: true },
     },
   ],
 });

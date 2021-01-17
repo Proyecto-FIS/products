@@ -19,6 +19,7 @@ describe("Products integration", () => {
       name: "testname",
       description: "enough description for coffee of mercadona",
       stock: 3,
+      deleted: false,
       imageUrl: "https://upload.wikimedia.org/wikipedia/commons.jpg",
       grind: ["Expresso", "Grano"],
       format: [
@@ -45,6 +46,7 @@ describe("Products integration", () => {
       name: "testname3",
       description: "for coffee of mercadona enough description",
       stock: 15,
+      deleted: false,
       imageUrl: "https://images.unsplash.com/photo-1.2.1&auto",
       grind: ["Expresso"],
       format: [

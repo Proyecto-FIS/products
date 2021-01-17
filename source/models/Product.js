@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 mongoose.set("useCreateIndex", true);
-const uniqueArrayPlugin = require("mongoose-unique-array");
 
 const ProductSchema = new Schema({
   name: { type: String, required: [true, "Product name required"] },
@@ -37,7 +36,10 @@ const ProductSchema = new Schema({
       name: {
         type: String,
         required: [true, "Kind of format required"],
-        unique: true,
+        validate: {
+          validator: function (currentName) {
+            return this.reduce((counter, v) => v.name === currentName ? counter + 1 : counter,0) < 2
+        },
       },
       price: {
         type: Number,
@@ -48,8 +50,5 @@ const ProductSchema = new Schema({
     },
   ],
 });
-// Add the unique array plugin
-ProductSchema.plugin(uniqueArrayPlugin);
-//const M = mongoose.model("ProductSchema", ProductSchema);
 
 module.exports = mongoose.model("Product", ProductSchema);

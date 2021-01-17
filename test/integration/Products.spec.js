@@ -86,16 +86,6 @@ describe("Products integration", () => {
       .expect(500);
   });
 
-  test("Duplicated name in format", () => {
-    return request(app)
-      .post(testURL)
-      .send({
-        product: { ...preload[2] },
-        userID: mongoose.Types.ObjectId().toHexString(),
-      })
-      .expect(500);
-  });
-
   test("Save porducts from different provider and filter by provider", () => {
     return request(app)
       .post(testURL)
@@ -105,7 +95,6 @@ describe("Products integration", () => {
       })
       .expect(201)
       .then((response) => {
-        console.log(response.body);
         expect(
           mongoose.Types.ObjectId.isValid(response.body.providerId)
         ).toBeTruthy();

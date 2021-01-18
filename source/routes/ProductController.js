@@ -137,10 +137,7 @@ class ProductController {
   getMethodSeveral(req, res) {
     console.log(Date() + "-GET /products-several");
     const identifiers = req.query.identifiers.split(",");
-    Product.find({ _id: { $in: identifiers }, deleted: false }).exec(function (
-      err,
-      products
-    ) {
+    Product.find({ _id: { $in: identifiers } }).exec(function (err, products) {
       res.send(products);
     });
   }

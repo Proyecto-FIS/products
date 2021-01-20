@@ -334,7 +334,6 @@ class ProductController {
    */
   uploadImageToS3(req, res) {
     let chunks = [],
-      fname,
       ftype,
       fEncoding;
     let busboy = new Busboy({ headers: req.headers });
@@ -349,7 +348,6 @@ class ProductController {
           ", mimetype: " +
           mimetype
       );
-      fname = filename.replace(/ /g, "_");
       ftype = mimetype;
       fEncoding = encoding;
       file.on("data", function (data) {
@@ -369,7 +367,7 @@ class ProductController {
           // Set your region here
           LocationConstraint: process.env.REGION,
         },
-        Key: `${userId}-${fname}`,
+        Key: `${userId}-product`,
         Body: Buffer.concat(chunks), // concatinating all chunks
         ACL: "public-read",
         ContentEncoding: fEncoding, // optional
